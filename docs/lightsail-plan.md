@@ -62,7 +62,8 @@ Orca server. Open the web client over HTTP or pair with a wss:// endpoint."*), �
 
 | 항목 | 내용 |
 |---|---|
-| AWS 계정 | 서울 리전(ap-northeast-2) 사용. Lightsail 조회 권한은 확인됨, **생성 권한은 실행 시 확인 필요** |
+| AWS 계정 | 서울 리전(ap-northeast-2) 사용 |
+| IAM 권한 | `AmazonLightsailFullAccess` 같은 **관리형 정책은 존재하지 않는다.** `scripts/remotecodepolicy.json`(이 절차가 호출하는 액션만 담은 정책)을 `remotecodepolicy` 라는 고객 관리형 정책으로 만들어 IAM 유저에 연결한다 |
 | 도메인 | 보유 도메인이 있으면 A 레코드 1개. 없으면 `<고정IP>.sslip.io`로 진행 가능 (Let's Encrypt 발급됨) |
 | SSH 키 | Lightsail 키페어 신규 생성 또는 기존 공개키 임포트 |
 | GitHub | 레포 클론용. 서버에서 `gh auth login` (device flow) |
@@ -102,7 +103,7 @@ aws lightsail get-static-ip     --region $REGION --static-ip-name ${NAME}-ip --q
 ```
 
 - `medium_3_0` = 4GB 번들. `ubuntu_24_04` = Ubuntu 24.04 LTS. 두 값 모두 서울 리전에서 조회 확인됨.
-- 실패하면 IAM 권한 문제일 가능성이 높다 (`lightsail:CreateInstances` 등).
+- 실패하면 IAM 권한 문제일 가능성이 높다 (`lightsail:CreateInstances` 등). 2절의 정책이 붙어 있는지 확인할 것.
 
 ### Phase 2 — 방화벽을 먼저 좁힌다
 
