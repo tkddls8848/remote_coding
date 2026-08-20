@@ -16,3 +16,13 @@ Thumbs.db
 
 # 스크립트 실행값 (도메인/IP 등 실제 값)
 scripts/config.env
+
+# Terraform — state 에 리소스 상세(IP 등)가 그대로 담긴다.
+# .terraform.lock.hcl 은 provider 버전 고정용이라 예외적으로 커밋한다.
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+!terraform/terraform.tfvars.example
+terraform/crash.log
+terraform/crash.*.log

@@ -2,9 +2,15 @@
 
 > 상태: **계획 단계. 아직 아무 자원도 생성되지 않음.** 이 문서의 명령을 실행하는 시점부터 과금이 시작됩니다.
 >
-> 아래 Phase 1~9는 [`scripts/`](../scripts/)에 실행 가능한 스크립트로 옮겨져 있습니다.
-> 이 문서가 정본이고 스크립트는 그 절차의 자동화입니다 — 순서와 실행 위치는
-> [`scripts/README.md`](../scripts/README.md)를 보세요.
+> 이 문서가 정본이고, 아래 Phase 1~9는 실행 가능한 형태로 옮겨져 있습니다 — 다만 한 군데가 아닙니다.
+>
+> | Phase | 담당 | 이유 |
+> |---|---|---|
+> | 1, 2, 7 (인스턴스·고정 IP·방화벽) | [`terraform/`](../terraform/) | AWS API 호출이라 선언형으로 표현된다 |
+> | 3~6, 8, 9 (호스트 내부 설정) | [`scripts/`](../scripts/) | 호스트 안에 들어가야 하는 절차형 작업이라 Terraform이 대신할 수 없다 |
+>
+> 아래 각 Phase의 명령은 **참고용 원본**이다. 실제로 실행할 때는 `terraform/README.md` 또는
+> `scripts/README.md`의 절차를 따른다 (순서와 실행 위치가 표로 정리되어 있다).
 
 ## 0. 목표와 완료 조건
 
@@ -65,7 +71,8 @@ Orca server. Open the web client over HTTP or pair with a wss:// endpoint."*), �
 | AWS 계정 | 서울 리전(ap-northeast-2) 사용 |
 | IAM 권한 | `AmazonLightsailFullAccess` 같은 **관리형 정책은 존재하지 않는다.** `scripts/remotecodepolicy.json`(이 절차가 호출하는 액션만 담은 정책)을 `remotecodepolicy` 라는 고객 관리형 정책으로 만들어 IAM 유저에 연결한다 |
 | 도메인 | 보유 도메인이 있으면 A 레코드 1개. 없으면 `<고정IP>.sslip.io`로 진행 가능 (Let's Encrypt 발급됨) |
-| SSH 키 | Lightsail 키페어 신규 생성 또는 기존 공개키 임포트 |
+| SSH 키 | Lightsail 키페어. `terraform apply`가 기존 공개키(`~/.ssh/id_ed25519.pub`)를 임포트한다 — 신규 생성 불필요, 없으면 `ssh-keygen`으로 먼저 만든다 |
+| Terraform | 1.5 이상. `terraform/`에서 `terraform init` 한 번 |
 | GitHub | 레포 클론용. 서버에서 `gh auth login` (device flow) |
 | 에이전트 계정 | Claude / Codex — 서버에서 device auth로 로그인 (브라우저 코드 입력) |
 
@@ -78,54 +85,62 @@ Orca server. Open the web client over HTTP or pair with a wss:// endpoint."*), �
 
 ### Phase 1 — 인스턴스 생성
 
-```bash
-export AWS_PAGER=""
-REGION=ap-northeast-2
-NAME=orca-host
+```powershell
+cd terraform
+terraform apply -var phase=build
+```
 
-# 키페어: 기존 공개키를 임포트하거나(권장) 신규 생성
-aws lightsail import-key-pair --region $REGION \
-  --key-pair-name orca-host-key \
-  --public-key-base64 "$(base64 -w0 ~/.ssh/id_ed25519.pub)"
+내부적으로 하는 일(`terraform/main.tf`):
 
-aws lightsail create-instances --region $REGION \
-  --instance-names $NAME \
-  --availability-zone ${REGION}a \
-  --blueprint-id ubuntu_24_04 \
-  --bundle-id medium_3_0 \
-  --key-pair-name orca-host-key \
-  --tags key=project,value=orca-host
+```hcl
+resource "aws_lightsail_key_pair" "orca" {
+  name       = "orca-host-key"
+  public_key = file(pathexpand("~/.ssh/id_ed25519.pub"))  # 원문 그대로. base64 로 다시 감싸면 안 된다
+}
 
-# 재부팅해도 주소가 바뀌지 않도록 고정 IP 부착
-aws lightsail allocate-static-ip --region $REGION --static-ip-name ${NAME}-ip
-aws lightsail attach-static-ip  --region $REGION --static-ip-name ${NAME}-ip --instance-name $NAME
-aws lightsail get-static-ip     --region $REGION --static-ip-name ${NAME}-ip --query 'staticIp.ipAddress' --output text
+resource "aws_lightsail_instance" "orca" {
+  name              = "orca-host"
+  availability_zone = "ap-northeast-2a"
+  blueprint_id      = "ubuntu_24_04"
+  bundle_id         = "medium_3_0"
+  key_pair_name     = aws_lightsail_key_pair.orca.name
+}
+
+resource "aws_lightsail_static_ip" "orca" { name = "orca-host-ip" }
+resource "aws_lightsail_static_ip_attachment" "orca" {
+  static_ip_name = aws_lightsail_static_ip.orca.name
+  instance_name  = aws_lightsail_instance.orca.name
+}
 ```
 
 - `medium_3_0` = 4GB 번들. `ubuntu_24_04` = Ubuntu 24.04 LTS. 두 값 모두 서울 리전에서 조회 확인됨.
+- `aws_lightsail_key_pair`는 **재생성이 안 된다** — Lightsail API가 생성 이후 공개키 원문을
+  돌려주지 않아서 `terraform import`를 지원하지 않는다. 기존 키가 있으면 지우고 Terraform이
+  새로 만들게 한다.
 - 실패하면 IAM 권한 문제일 가능성이 높다 (`lightsail:CreateInstances` 등). 2절의 정책이 붙어 있는지 확인할 것.
+- 고정 IP: `terraform output static_ip`로 확인. 재부팅해도 바뀌지 않는다.
 
 ### Phase 2 — 방화벽을 먼저 좁힌다
 
 Lightsail은 기본으로 22와 80을 연다. 구축 중에는 SSH만, 완료 후에는 443만 남긴다.
+Phase 1의 `terraform apply -var phase=build`가 이미 이 상태까지 만든다 — 별도 명령이 없다.
 
-```bash
-# 구축 단계: SSH는 내 현재 공인 IP에서만. 80/443은 인증서 발급 때문에 열어둔다.
-aws lightsail put-instance-public-ports --region $REGION --instance-name $NAME \
-  --port-infos fromPort=22,toPort=22,protocol=TCP,cidrs=<MY_IP>/32 \
-               fromPort=80,toPort=80,protocol=TCP \
-               fromPort=443,toPort=443,protocol=TCP
-```
+내부적으로 하는 일(`terraform/firewall.tf`): `phase=build`일 때 **22(내 공인 IP만) + 80 + 443**을
+열고, `phase=final`일 때 **443**만 남기도록 `aws_lightsail_instance_public_ports`를
+`dynamic` 블록으로 표현한다.
 
 > **80/443을 함께 여는 이유** — Phase 6의 Let's Encrypt 발급은 ACME 챌린지가 인터넷에서
 > 도달해야 성립한다(HTTP-01은 80, TLS-ALPN-01은 443). 구축 단계에 22만 열어두면
 > Phase 6에서 인증서를 받지 못한다. 발급이 끝나면 Phase 7이 443 하나만 남긴다 —
 > **최종 상태는 그대로 443 하나다.**
 
-> `put-instance-public-ports`는 **기존 규칙을 통째로 교체**한다. 매번 최종 상태 전체를 적어야 한다.
+> `put-instance-public-ports`는 **기존 규칙을 통째로 교체**하는 API다. Terraform에서는
+> `phase` 변수 하나로 "최종 상태 전체"가 자동으로 다시 계산된다.
 
-가정용 회선은 IP가 바뀔 수 있다. 바뀌어서 잠기면 **Lightsail 콘솔의 브라우저 SSH**로 들어가
-규칙을 갱신하면 된다 — 이 경로가 있기 때문에 22를 아예 닫는 최종 상태가 가능하다.
+가정용 회선은 IP가 바뀔 수 있다. 바뀌어서 잠기면 `terraform apply -var phase=build`를
+다시 돌린다 — `my_ip`를 비워두면 매번 `checkip.amazonaws.com`으로 재감지한다. 그래도
+막히면 **Lightsail 콘솔의 브라우저 SSH**로 들어가면 된다 — 이 경로가 있기 때문에 22를
+아예 닫는 최종 상태가 가능하다.
 
 ### Phase 3 — 기본 툴체인과 여유 메모리
 
@@ -238,11 +253,10 @@ sudo systemctl reload caddy
 
 ### Phase 7 — 최종 방화벽: 443만
 
-```bash
-aws lightsail put-instance-public-ports --region $REGION --instance-name $NAME \
-  --port-infos fromPort=443,toPort=443,protocol=TCP
-
-aws lightsail get-instance-port-states --region $REGION --instance-name $NAME --output table
+```powershell
+cd terraform
+terraform apply -var phase=final
+terraform output open_ports
 ```
 
 이후 서버 접속은 **Lightsail 콘솔의 브라우저 SSH**를 쓴다. SSH를 상시로 열어둘 이유가 없다.
@@ -291,10 +305,12 @@ orca repo list
 ```bash
 systemctl is-active orca-serve caddy          # 둘 다 active
 curl -I https://<DOMAIN>/web-index.html       # 200
-aws lightsail get-instance-port-states --region ap-northeast-2 \
-  --instance-name orca-host --output table    # 443만
 free -h                                        # 스왑 잡혀 있는지
 journalctl -u orca-serve --since "10 min ago" # 에러 없는지
+```
+
+```powershell
+terraform -chdir=terraform plan               # drift 없음, 443만 열려 있어야 함
 ```
 
 그리고 실제 시나리오로:
@@ -316,7 +332,7 @@ journalctl -u orca-serve --since "10 min ago" # 에러 없는지
 | 로그 | `journalctl -u orca-serve -f`, `journalctl -u caddy -f` |
 | 접근 회수 | Orca 설정의 Shared Server Access에서 개별 grant 취소 |
 | 비용 확인 | AWS Billing 콘솔. 정액이라 예측 가능 |
-| 완전 삭제 | `aws lightsail delete-instance --instance-name orca-host` + `release-static-ip` (과금 중단) |
+| 완전 삭제 | `terraform destroy` (`terraform/`) — 인스턴스·고정 IP·키페어 한 번에, 과금 중단 |
 
 ---
 
@@ -328,9 +344,10 @@ journalctl -u orca-serve --since "10 min ago" # 에러 없는지
 | 443이 인터넷에 공개됨 | 스캐너 노출 | Caddy basic_auth 추가, Orca 페어링 토큰, fail2ban, 접근 로그 주기 확인 |
 | 페어링 링크 유출 | 런타임 무단 접근 | Shared Server Access에서 즉시 회수. 링크를 평문으로 남기지 않기 |
 | 4GB 부족 | 빌드 실패, OOM | 스왑 2GB 선반영. 지속되면 8GB($44) 번들로 상향 |
-| 가정 IP 변동으로 SSH 잠김 | 접속 불가 | Lightsail 브라우저 SSH 콘솔로 우회 (최종 상태에서는 22를 아예 닫음) |
+| 가정 IP 변동으로 SSH 잠김 | 접속 불가 | `terraform apply -var phase=build` 재실행(자동 재감지) 또는 Lightsail 브라우저 SSH 콘솔로 우회 (최종 상태에서는 22를 아예 닫음) |
 | 인증서 발급 실패 | 브라우저 접속 불가 | 80을 잠시 열고 재발급. 도메인 없으면 `sslip.io` |
 | 로컬에만 있던 환경 이관 누락 | 일부 작업 불가 | Docker·에뮬레이터·로컬 DB는 서버에 별도 구성 필요. 4GB에서는 Docker 동시 사용에 주의 |
+| Terraform state 유실 | 리소스 추적 불가 (자원 자체는 남음) | 로컬 1인 프로젝트라 원격 backend 없음. `terraform/README.md` 참고 — 최악의 경우 콘솔에서 확인 후 `terraform import` |
 
 ---
 

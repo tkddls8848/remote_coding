@@ -2,15 +2,17 @@
 # 호스트에서 실행할 스크립트(03~09)와 설정을 서버로 복사한다.
 #
 #   실행 위치: 로컬
-#   SSH 가 열려 있어야 한다 (02 실행 후 / 07 실행 전).
+#   전제: terraform apply (terraform/) 로 인스턴스가 떠 있고, SSH 가 열려 있을 것
+#         (phase=build 상태 / 07 상당 단계 이전)
 
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 need scp
 need ssh
+need terraform
 
-STATIC_IP="${STATIC_IP:-$(static_ip_address)}"
-[ -n "$STATIC_IP" ] || die "고정 IP 를 찾을 수 없다. 01 을 먼저 실행할 것."
+STATIC_IP="${STATIC_IP:-$(tf_output static_ip)}"
+[ -n "$STATIC_IP" ] || die "고정 IP 를 찾을 수 없다. terraform apply 를 먼저 실행할 것 (terraform/README.md)."
 export STATIC_IP
 host="$(resolve_host)"
 
@@ -50,5 +52,5 @@ cat <<TXT
   ./09-repos.sh           # 레포 클론 + orca 등록
 
 그 다음 로컬에서:
-  ./scripts/07-firewall-final.sh
+  cd terraform && terraform apply -var phase=final
 TXT

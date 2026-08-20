@@ -17,7 +17,8 @@
       "Action": [
         "lightsail:GetKeyPair",
         "lightsail:GetKeyPairs",
-        "lightsail:ImportKeyPair"
+        "lightsail:ImportKeyPair",
+        "lightsail:DeleteKeyPair"
       ],
       "Resource": "*"
     },
@@ -32,6 +33,15 @@
         "lightsail:DeleteInstance",
         "lightsail:TagResource",
         "lightsail:UntagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Operations",
+      "Effect": "Allow",
+      "Action": [
+        "lightsail:GetOperation",
+        "lightsail:GetOperations"
       ],
       "Resource": "*"
     },
