@@ -105,5 +105,6 @@ VM이라는 점에서 처음 방향과 위험의 성격이 다르다.
 | 개인 PC의 인바운드 노출 정리 | ✅ 완료 |
 | 검토용 Tailscale 설치 제거 | ✅ 완료 |
 | 로컬 예약 작업 제거 | ✅ 완료 |
-| Lightsail 인스턴스 생성 | ⬜ 미실행 — 계획 문서만 작성 |
+| 구축 절차 스크립트화 (`scripts/`) | ✅ 완료 — 계획서 Phase 1~9를 멱등 스크립트로 |
+| Lightsail 인스턴스 생성 | ⬜ 미실행 — AWS 자격증명이 있는 곳에서 `scripts/01-provision-instance.sh` |
 | 서버 구축 (Orca / Caddy / systemd) | ⬜ 미실행 |

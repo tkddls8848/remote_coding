@@ -13,3 +13,6 @@ backup/
 # OS
 Thumbs.db
 .DS_Store
+
+# 스크립트 실행값 (도메인/IP 등 실제 값)
+scripts/config.env

@@ -1,6 +1,10 @@
 # Lightsail 4GB Orca 호스트 구축 계획
 
 > 상태: **계획 단계. 아직 아무 자원도 생성되지 않음.** 이 문서의 명령을 실행하는 시점부터 과금이 시작됩니다.
+>
+> 아래 Phase 1~9는 [`scripts/`](../scripts/)에 실행 가능한 스크립트로 옮겨져 있습니다.
+> 이 문서가 정본이고 스크립트는 그 절차의 자동화입니다 — 순서와 실행 위치는
+> [`scripts/README.md`](../scripts/README.md)를 보세요.
 
 ## 0. 목표와 완료 조건
 
@@ -105,10 +109,17 @@ aws lightsail get-static-ip     --region $REGION --static-ip-name ${NAME}-ip --q
 Lightsail은 기본으로 22와 80을 연다. 구축 중에는 SSH만, 완료 후에는 443만 남긴다.
 
 ```bash
-# 구축 단계: SSH를 내 현재 공인 IP에서만 허용 (아래 <MY_IP>를 실제 값으로)
+# 구축 단계: SSH는 내 현재 공인 IP에서만. 80/443은 인증서 발급 때문에 열어둔다.
 aws lightsail put-instance-public-ports --region $REGION --instance-name $NAME \
-  --port-infos fromPort=22,toPort=22,protocol=TCP,cidrs=<MY_IP>/32
+  --port-infos fromPort=22,toPort=22,protocol=TCP,cidrs=<MY_IP>/32 \
+               fromPort=80,toPort=80,protocol=TCP \
+               fromPort=443,toPort=443,protocol=TCP
 ```
+
+> **80/443을 함께 여는 이유** — Phase 6의 Let's Encrypt 발급은 ACME 챌린지가 인터넷에서
+> 도달해야 성립한다(HTTP-01은 80, TLS-ALPN-01은 443). 구축 단계에 22만 열어두면
+> Phase 6에서 인증서를 받지 못한다. 발급이 끝나면 Phase 7이 443 하나만 남긴다 —
+> **최종 상태는 그대로 443 하나다.**
 
 > `put-instance-public-ports`는 **기존 규칙을 통째로 교체**한다. 매번 최종 상태 전체를 적어야 한다.
 

@@ -32,12 +32,24 @@
 |---|---|
 | [docs/lightsail-plan.md](docs/lightsail-plan.md) | 구축 계획서. 10단계 절차, 실행 명령, 검증 체크리스트, 리스크 대응 |
 | [docs/decision-log.md](docs/decision-log.md) | 왜 이 구조인지. 개인 PC 호스팅을 접은 이유, EC2·Graviton·IPv6 번들 검토 결과 |
+| [scripts/README.md](scripts/README.md) | 계획서 Phase 1~9를 옮긴 실행 스크립트. 순서와 실행 위치 |
 
 ## 다음 액션
 
-1. `docs/lightsail-plan.md`의 Phase 1 — 인스턴스 생성 (여기서부터 과금 시작)
-2. Phase 4에서 Electron 헤드리스 기동을 먼저 검증 — 계획상 가장 불확실한 지점
-3. Phase 7까지 마치면 공개 포트가 443 하나만 남는다
+```bash
+cp scripts/config.example.env scripts/config.env   # DOMAIN, SSH_PUBLIC_KEY 등을 채운다
+./scripts/01-provision-instance.sh                 # 여기서부터 과금 시작
+```
+
+이후 순서는 [scripts/README.md](scripts/README.md)의 표를 따른다. 짚어둘 지점 셋:
+
+1. `01`이 성공하는 순간부터 $24/mo 과금이 시작된다
+2. `04-install-orca.sh`가 Electron 헤드리스 기동을 실제로 검증한다 — 계획상 가장 불확실한 지점.
+   그냥 안 뜨면 `xvfb-run` 래핑으로 자동 우회하고, 그래도 안 되면 거기서 멈춘다
+3. `07-firewall-final.sh`까지 마치면 공개 포트가 443 하나만 남는다
+
+에이전트 로그인(`claude`, `codex`)과 `gh auth login`, 클라이언트 페어링은 device auth라
+스크립트가 대신할 수 없다. 사람이 직접 하는 구간이다.
 
 ## 주의
 
