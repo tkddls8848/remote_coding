@@ -1,14 +1,24 @@
 # remote_coding
 
-어느 위치·어느 데스크탑에서든 항상 접근 가능한 개발환경을 만들기 위한 계획과 결정 기록.
+개인 인프라 코드 저장소. 두 영역으로 나뉜다.
 
-에이전트·터미널·워크트리는 클라우드의 단일 호스트에서만 돌고, 접속하는 기기는 화면만 가져간다.
-노트북을 닫아도 에이전트는 계속 돌고, 다른 자리에서 열면 하던 세션이 그대로 이어진다.
+1. **orca-host** — 어느 위치·어느 데스크탑에서든 항상 접근 가능한 개발환경을 만들기 위한
+   계획과 결정 기록. 에이전트·터미널·워크트리는 클라우드의 단일 호스트에서만 돌고, 접속하는
+   기기는 화면만 가져간다. 노트북을 닫아도 에이전트는 계속 돌고, 다른 자리에서 열면 하던
+   세션이 그대로 이어진다.
+2. **systems/** — 인프라 학습 랩 모음. Kubernetes·Ceph·BeeGFS·Hadoop 등을 로컬(Vagrant)과
+   AWS(OpenTofu) 양쪽에서 직접 구성해 보는 랩 13종. [`forfun`](https://github.com/tkddls8848/forfun)에서
+   이관했다 — 경위는 [docs/forfun-consolidation-plan.md](docs/forfun-consolidation-plan.md).
+
+두 영역은 서로 참조하지 않는다. 아래 "현재 상태"·"핵심 원칙"·"Windows 준비"·"실행"·"자주 쓰는
+명령"·"되돌리기"는 **orca-host** 절차다. 랩은 [랩 목록](#랩-목록-systems)에서 각 랩의 README를 본다.
 
 이 문서는 **조작하는 쪽이 Windows 11 + PowerShell**인 상황을 기준으로 쓴다.
 서버(호스트)는 Ubuntu 24.04이고, 서버에서 도는 스크립트는 리눅스 쉘에서 실행한다.
+랩(`systems/`)은 각자의 README를 따른다 — 대부분 Vagrant/VirtualBox 기준이며 일부는
+WSL2를 전제한다.
 
-## 현재 상태
+## orca-host 현재 상태
 
 **계획 단계 — 클라우드 자원은 아직 아무것도 생성되지 않았다.**
 
@@ -30,18 +40,55 @@
 모든 보안 경계는 서버에 둔다. 노출되는 대상은 개인 PC가 아니라 언제든 스냅샷으로 되돌리고
 갈아엎을 수 있는 격리된 VM이다.
 
-## 문서 / 코드
+## orca-host 문서 / 코드
 
 | | 내용 |
 |---|---|
 | [docs/lightsail-plan.md](docs/lightsail-plan.md) | 구축 계획서. 10단계 절차, 아키텍처, 검증 체크리스트, 리스크 대응 |
-| [docs/decision-log.md](docs/decision-log.md) | 왜 이 구조인지. 개인 PC 호스팅을 접은 이유, EC2·Graviton·IPv6 번들 검토 결과 |
+| [docs/stock-chatbot-merge-plan.md](docs/stock-chatbot-merge-plan.md) | stock_chatbot 인스턴스를 orca-host로 통합하는 계획 |
 | [terraform/](terraform/) | AWS 자원(인스턴스·고정 IP·키페어·방화벽) |
 | [scripts/](scripts/) | 호스트 내부 설정 01~06(기본 도구·Orca·systemd·Caddy·에이전트 CLI·레포) |
 
 **AWS API로 되는 일과 호스트 안에 들어가야 하는 일이 나뉘어 있다.** 인터넷 쪽으로 어떤 포트가
 열리는지는 `terraform/`이 선언하고, 그 트래픽을 TLS 종단해서 로컬 4224로 넘기는 일은 `scripts/`가
 서버 안에서 한다. 자세한 이유는 각 디렉터리의 README를 본다.
+
+---
+
+## 랩 목록 (systems/)
+
+랩 하나 = 폴더 하나. 시스템이 사용하는 앱과 설치 스크립트도 같은 폴더 안에 있고, 다른 시스템
+폴더를 참조하지 않는다. 각 명령은 해당 랩 폴더에서 실행한다.
+
+| 폴더 | 구성 | 시작 명령 |
+| --- | --- | --- |
+| [`aws-k3s-storage-lab`](systems/aws-k3s-storage-lab) | AWS, K3s, Ceph, BeeGFS | `bash scripts/lifecycle/start.sh` |
+| [`aws-kubeadm-storage-lab`](systems/aws-kubeadm-storage-lab) | AWS, kubeadm HA, Ceph, BeeGFS | `bash scripts/lifecycle/start_k8s.sh` |
+| [`local-ceph-kvm`](systems/local-ceph-kvm) | libvirt/KVM, Cephadm | `vagrant up --provider=libvirt` |
+| [`local-ceph-vagrant`](systems/local-ceph-vagrant) | VirtualBox, Cephadm, Block Store 앱 | `vagrant up --provider=virtualbox` |
+| [`local-hadoop-vagrant`](systems/local-hadoop-vagrant) | VirtualBox, Hadoop | `vagrant up` |
+| [`local-k3s-ai`](systems/local-k3s-ai) | 호스트 K3s, 선택적 K3ai | `bash scripts/addons/ai.sh` |
+| [`local-kubeadm-gpu`](systems/local-kubeadm-gpu) | libvirt/KVM, kubeadm, GPU | `bash 00_host_setup.sh` |
+| [`local-kubeadm-vagrant`](systems/local-kubeadm-vagrant) | VirtualBox, kubeadm | `vagrant up` |
+| [`local-kubespray-cephfs-rocky9`](systems/local-kubespray-cephfs-rocky9) | VirtualBox, Kubespray, CephFS, Rocky Linux 9 | `vagrant up` |
+| [`local-kubespray-rook-ceph`](systems/local-kubespray-rook-ceph) | VirtualBox, Kubespray, Rook/Ceph | `vagrant up` |
+| [`local-microk8s-kubeflow-gpu`](systems/local-microk8s-kubeflow-gpu) | 호스트 MicroK8s, Kubeflow, GPU | `bash scripts/host/01_nvidia_driver_install.sh`부터 순서대로 실행 |
+| [`local-minikube-kubevirt-rocky`](systems/local-minikube-kubevirt-rocky) | VirtualBox, Minikube, KubeVirt, Rocky Linux 9 | `vagrant up` |
+| [`local-spectrum-scale-ces-s3`](systems/local-spectrum-scale-ces-s3) | VirtualBox, IBM Storage Scale CES S3, Rocky Linux 9, 미지원 단일 노드 실험 | opt-in 후 `vagrant up --provider=virtualbox` |
+
+새 랩은 `systems/<위치>-<핵심 기술>-<목적>` 형태로 추가한다. 여러 랩에서 같은 설치 코드가
+필요하면 랩마다 복제한다 — 랩 간 상대경로 참조는 만들지 않는다. 생성 파일과 비밀정보는
+루트 `.gitignore`의 `systems/**` 공통 규칙과 각 랩의 `.gitignore`가 함께 관리한다.
+
+`docs/` 아래 검토 문서:
+
+| | 내용 |
+|---|---|
+| [docs/kubernetes-review-fix-list.md](docs/kubernetes-review-fix-list.md) | `systems/` 하위 클러스터 정의 코드 검토·수정 이력 |
+| [docs/os-compatibility-review.md](docs/os-compatibility-review.md) | OS 구성별 호환성 검토 결과 |
+| [docs/os-migration-rhel9-ubuntu2604.md](docs/os-migration-rhel9-ubuntu2604.md) | RHEL9 → Ubuntu 26.04 마이그레이션 검토 |
+| [docs/spectrum-scale-ces-lab-feasibility.md](docs/spectrum-scale-ces-lab-feasibility.md) | Spectrum Scale CES S3 랩 타당성 검토 |
+| [docs/forfun-consolidation-plan.md](docs/forfun-consolidation-plan.md) | 이 랩들을 forfun에서 이관한 절차서 |
 
 ---
 
