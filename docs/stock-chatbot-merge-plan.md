@@ -11,7 +11,7 @@
 |                | stock_chatbot            | orca-host (이 저장소)             |
 | -------------- | ------------------------ | ------------------------------ |
 | 번들           | `micro_3_0` 1GB / 2 vCPU · **$7/mo** | `medium_3_0` 4GB / 2 vCPU · **$24/mo** |
-| 프로비저닝     | Terraform (`iac/terraform`, state는 로컬) | 셸 스크립트 (`scripts/01~09`) |
+| 프로비저닝     | Terraform (`iac/terraform`, state는 로컬) | Terraform + 호스트 스크립트 (`scripts/01~06`) |
 | 공개 포트      | 22만 (`allowed_ssh_cidrs`로 좁힘) | 최종 443만 (22는 닫음) |
 | 서비스         | `stock-chatbot.service`  | `orca-serve.service` + Caddy   |
 | 백업           | 자동 스냅샷 19:00 UTC + `cron` tar 03:00 KST | 없음 |
@@ -70,8 +70,8 @@ stock_chatbot**으로 가른다. 경계를 흐리면 다음 사람이 유닛 파
 
 | 대상 | 소유 | 위치 |
 |---|---|---|
-| 인스턴스·고정 IP·방화벽·스냅샷 애드온 | **remote_coding** | `scripts/01`, `02`, `07` |
-| 호스트 공통 설정 (스왑, Node, TZ, 보안 패치) | **remote_coding** | `scripts/03-host-base.sh` |
+| 인스턴스·고정 IP·방화벽·스냅샷 애드온 | **remote_coding** | `terraform/` |
+| 호스트 공통 설정 (스왑, Node, TZ, 보안 패치) | **remote_coding** | `scripts/01-host-base.sh` |
 | 봇 운영 클론 + 설치 호출 | **remote_coding** | `scripts/10-stock-chatbot.sh` (신설) |
 | venv·`.env` 골격·systemd 유닛·백업 cron | **stock_chatbot** | `iac/host/install.sh` (신설) |
 | 배포 갱신·설정 변경·장애 대응 절차 | **stock_chatbot** | `docs/server-ops.md` |
@@ -96,7 +96,7 @@ stock_chatbot**으로 가른다. 경계를 흐리면 다음 사람이 유닛 파
 
 서비스는 `/srv/stock-chatbot`에서 돌고, 에이전트 작업용 클론은 `~/orca/stock_chatbot`에
 따로 둔다. **같은 디렉터리를 쓰면 에이전트가 브랜치를 바꾸는 순간 운영 코드가 바뀐다.**
-`scripts/09-repos.sh`의 `REPOS`에 `stock_chatbot`을 추가하는 것은 개발용 클론에만
+`scripts/06-repos.sh`의 `REPOS`에 `stock_chatbot`을 추가하는 것은 개발용 클론에만
 해당하고, 운영 클론은 `10-stock-chatbot.sh`가 따로 만든다.
 
 ### 3.2 전용 계정으로 돌린다
@@ -158,7 +158,7 @@ stock_chatbot**으로 가른다. 경계를 흐리면 다음 사람이 유닛 파
 
 ### 4.3 호스트 준비에서 빠진 것 둘
 
-`scripts/03-host-base.sh`는 (a) **타임존을 설정하지 않고** (b) **`python3-venv`를 깔지
+`scripts/01-host-base.sh`는 (a) **타임존을 설정하지 않고** (b) **`python3-venv`를 깔지
 않는다.** 봇의 "지금"은 `core/clock.py`가 KST로 고정하므로 하루 경계는 무관하지만,
 **백업 cron과 journal 시각은 호스트 타임존을 따른다** — UTC로 두면 `0 3 * * *`가
 12:00 KST에 돌아 04:00 KST 스냅샷에 그날 tar가 들어가지 않는다.
@@ -293,7 +293,7 @@ cd iac/terraform && terraform destroy      # 고정 IP도 함께 사라진다
 | 저장소 | 문서 | 무엇을 |
 |---|---|---|
 | remote_coding | `README.md` | "미생성" 표기 해제, 호스트가 봇도 함께 돌린다는 사실과 이 문서 링크 |
-| remote_coding | `docs/lightsail-plan.md` | Phase 10 뒤에 stock_chatbot 항목 추가, 재부팅 금지 창(07:00 / 08:35~10:35 KST) 명시 |
+| remote_coding | `docs/lightsail-plan.md` | 인수 테스트 뒤에 stock_chatbot 항목 추가, 재부팅 금지 창(07:00 / 08:35~10:35 KST) 명시 |
 | remote_coding | `scripts/README.md` | `10-stock-chatbot.sh` 행 추가 |
 | stock_chatbot | `iac/terraform/README.md` | 인스턴스 생성 절차를 폐기하고 "호스트는 remote_coding이 소유"로 재작성 |
 | stock_chatbot | `docs/server-ops.md` | 1절(접속 — 브라우저 SSH / Orca 터미널), 3절(경로 `/srv/stock-chatbot`, 계정 `stockbot`), 9절(스냅샷 주체) |

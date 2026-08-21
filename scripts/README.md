@@ -1,70 +1,93 @@
 # scripts/
 
-[docs/lightsail-plan.md](../docs/lightsail-plan.md) Phase 3~6, 8~9를 실행 가능한 형태로 옮긴 것.
-Phase 1·2·7(AWS 자원 생성, 방화벽)은 여기 없다 — [`terraform/`](../terraform/)가 담당한다.
+Lightsail 호스트 내부 설정을 실제 실행 순서대로 자동화한다. AWS 인스턴스, 고정 IP,
+키페어, 공개 포트는 [`terraform/`](../terraform/)에서 관리한다.
 
-| 담당 | 범위 |
-|---|---|
-| [`terraform/`](../terraform/) | 인스턴스, 고정 IP, 키페어, Lightsail 방화벽 — AWS API로 되는 일 |
-| `scripts/` (여기) | Orca 설치, systemd, Caddy, 에이전트 CLI, 레포 등록 — 호스트 안에 들어가야 하는 일 |
+## 번호 체계
 
-계획서가 정본이고, 여기 스크립트는 그 절차를 그대로 자동화한 것이다.
+번호는 `scripts/` 안에서의 실행 순서이며 전체 구축 단계 번호가 아니다.
 
-모든 스크립트는 **여러 번 실행해도 안전하다** — 이미 만들어진 자원과 이미 끝난 설정은 건너뛴다.
+| 번호 | 파일 | 역할 |
+|---:|---|---|
+| 01 | `01-host-base.sh` | 패키지 갱신, 빌드 도구, 스왑 2GB, Node.js 22, 자동 보안 업데이트 |
+| 02 | `02-install-orca.sh` | Orca 설치, 헤드리스 기동 검증, 필요 시 xvfb 판정 |
+| 03 | `03-orca-service.sh` | Orca를 systemd 서비스로 등록하고 자동 재시작 설정 |
+| 04 | `04-caddy.sh` | Caddy 설치, HTTPS/WSS 종단, 인증서 발급 |
+| 05 | `05-agent-cli.sh` | Claude Code와 Codex CLI 설치 |
+| 06 | `06-repos.sh` | GitHub 저장소 클론 및 Orca 등록 |
+
+보조 파일은 번호를 붙이지 않는다.
+
+- `sync-host.sh`: 설정과 실행 스크립트를 서버로 전송
+- `verify-host.sh`: 서버 서비스, HTTPS, 스왑 점검
+- `lib.sh`: 공통 함수와 설정 로더
+- `config.example.env`: 로컬 설정 예시
+- `remotecodepolicy.json`: Terraform 실행 주체용 최소 IAM 정책
 
 ## 준비
 
-```powershell
-cp scripts/config.example.env scripts/config.env
-$EDITOR scripts/config.env          # DOMAIN, REPOS, GITHUB_OWNER
-```
-
-`config.env`는 `.gitignore`에 있다. 실제 도메인을 적어도 커밋되지 않는다.
-AWS 쪽 설정(리전·번들·SSH 키 경로 등)은 여기가 아니라 `terraform/terraform.tfvars`에 있다.
-
-## 실행 순서
-
-| 순서 | 명령 | 실행 위치 | Phase |
-|---|---|---|---|
-| 1 | `terraform apply -var phase=build` (`terraform/`) | 로컬 | 1·2 — 인스턴스 + 고정 IP + 방화벽(22 내 IP만+80+443) **(여기서부터 과금)** |
-| 2 | `sync-host.sh` | 로컬 | 호스트 스크립트를 서버로 복사 |
-| 3 | `03-host-base.sh` | 서버 | 3 — 툴체인 + 스왑 2GB + Node |
-| 4 | `04-install-orca.sh` | 서버 | 4 — Orca 설치 + **헤드리스 기동 검증** |
-| 5 | `05-orca-service.sh` | 서버 | 5 — systemd 서비스 |
-| 6 | `06-caddy.sh` | 서버 | 6 — HTTPS/WSS 종단 |
-| 7 | `verify-host.sh` | 서버 | 4절 체크리스트 (서버 쪽) |
-| 8 | `terraform apply -var phase=final` (`terraform/`) | 로컬 | 7 — 443 하나만 남긴다 |
-| 9 | `08-agent-cli.sh` | 서버 | 8 — 에이전트 CLI 설치 (로그인은 사람이) |
-| 10 | `09-repos.sh` | 서버 | 9 — 레포 클론 + 등록 |
-| — | `terraform plan` (`terraform/`) | 로컬 | 상태 점검 — drift 확인 |
-
-Phase 10(클라이언트 연결)은 각 기기에서 사람이 하는 일이라 스크립트가 없다.
-
-## 자동화되지 않는 구간
-
-계획서에 이미 적힌 대로, 다음은 사람이 직접 해야 한다.
-
-- **에이전트 로그인** (`claude`, `codex`) — device auth. 화면의 코드를 브라우저에 입력한다.
-- **`gh auth login`** — 동일하게 device flow. `09-repos.sh`는 이게 끝나 있어야 돈다.
-- **클라이언트 페어링** — 페어링 링크는 `journalctl -u orca-serve`에 나온다.
-  이 링크는 비밀번호와 동급이라 스크립트가 파일로 남기거나 출력해 두지 않는다.
-- **DNS A 레코드** — 도메인을 쓸 경우. 없으면 `<고정IP>.sslip.io`가 자동으로 쓰인다.
-
-## 방화벽 build → final 전환
-
-계획서 Phase 2는 구축 단계에 **22만** 열도록 되어 있는데, 그 상태로는 Phase 6에서
-Let's Encrypt 인증서를 받을 수 없다. ACME 챌린지가 인터넷에서 도달해야 하기 때문이다
-(HTTP-01은 80, TLS-ALPN-01은 443).
-
-그래서 `terraform apply -var phase=build`는 **22(내 IP만) + 80 + 443**을 연다.
-`verify-host.sh`까지 끝나면 `terraform apply -var phase=final`(기본값)이 443 하나만
-남긴다 — 최종 상태는 계획서와 같다. 자세한 내용은 [`terraform/README.md`](../terraform/README.md).
-
-## 되돌리기
+저장소 루트에서 설정 파일을 만든다. `config.env`는 `.gitignore` 대상이다.
 
 ```powershell
-cd terraform
-terraform destroy
+Copy-Item scripts\config.example.env scripts\config.env
+notepad scripts\config.env
 ```
 
-인스턴스와 고정 IP를 한 번에 정리한다. 과금이 멈춘다.
+`DOMAIN`을 비우면 `sync-host.sh`가 Terraform의 고정 IP를 읽어
+`<STATIC_IP>.sslip.io`를 사용한다. 파일은 BOM 없는 UTF-8과 LF 줄바꿈으로 저장한다.
+
+## 실행
+
+먼저 로컬 PowerShell에서 AWS 자원을 만든다.
+
+```powershell
+terraform -chdir=terraform init
+terraform -chdir=terraform apply -var phase=build
+& "C:\Program Files\Git\bin\bash.exe" ./scripts/sync-host.sh
+```
+
+서버에 접속해 순서대로 실행한다.
+
+```bash
+./01-host-base.sh
+./02-install-orca.sh
+./03-orca-service.sh
+./04-caddy.sh
+./verify-host.sh
+./05-agent-cli.sh
+
+# 아래 인증은 사람이 직접 완료한다.
+claude
+codex
+gh auth login
+
+./06-repos.sh
+```
+
+서버 검증 후 로컬에서 최종 방화벽을 적용한다.
+
+```powershell
+terraform -chdir=terraform apply -var phase=final
+```
+
+`phase=build`는 22(현재 공인 IP만), 80, 443을 열고 `phase=final`은 443만 남긴다.
+최종 전환 뒤 SSH 22가 닫히는 것은 정상이다.
+
+## 재실행과 수동 구간
+
+스크립트는 가능한 범위에서 재실행 가능하게 작성되어 있다. 다만 패키지 최신 버전 설치,
+서비스 재시작, Caddy 설정 덮어쓰기는 다시 수행될 수 있으므로 운영 중에는 변경 내용을 먼저 확인한다.
+
+다음 작업은 자동화하지 않는다.
+
+- Claude Code, Codex, GitHub CLI의 브라우저 인증
+- Orca 클라이언트 페어링
+- 사용자 도메인의 DNS A 레코드 변경
+
+페어링 링크는 다음 명령으로 확인하며 비밀번호처럼 취급한다.
+
+```bash
+journalctl -u orca-serve -n 100 --no-pager
+```
+
+전체 절차와 운영·복구 방법은 [`docs/lightsail-plan.md`](../docs/lightsail-plan.md)를 따른다.

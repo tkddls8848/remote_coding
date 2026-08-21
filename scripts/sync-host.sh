@@ -30,9 +30,9 @@ TXT
 
 scp -q "$tmp" "ubuntu@$STATIC_IP:~/orca-host.env"
 scp -q "$SCRIPT_DIR"/lib.sh \
-       "$SCRIPT_DIR"/03-host-base.sh "$SCRIPT_DIR"/04-install-orca.sh \
-       "$SCRIPT_DIR"/05-orca-service.sh "$SCRIPT_DIR"/06-caddy.sh \
-       "$SCRIPT_DIR"/08-agent-cli.sh "$SCRIPT_DIR"/09-repos.sh \
+       "$SCRIPT_DIR"/01-host-base.sh "$SCRIPT_DIR"/02-install-orca.sh \
+       "$SCRIPT_DIR"/03-orca-service.sh "$SCRIPT_DIR"/04-caddy.sh \
+       "$SCRIPT_DIR"/05-agent-cli.sh "$SCRIPT_DIR"/06-repos.sh \
        "$SCRIPT_DIR"/verify-host.sh "ubuntu@$STATIC_IP:~/"
 
 ssh "ubuntu@$STATIC_IP" 'chmod +x ~/*.sh'
@@ -43,13 +43,13 @@ cat <<TXT
 서버에 붙어서 순서대로 실행한다:
 
   ssh ubuntu@$STATIC_IP
-  ./03-host-base.sh       # 툴체인 + 스왑 2GB + Node
-  ./04-install-orca.sh    # Orca 설치 + 헤드리스 기동 검증 (가장 불확실한 단계)
-  ./05-orca-service.sh    # systemd 서비스 등록
-  ./06-caddy.sh           # Caddy 로 HTTPS/WSS 종단
+  ./01-host-base.sh       # 툴체인 + 스왑 2GB + Node
+  ./02-install-orca.sh    # Orca 설치 + 헤드리스 기동 검증 (가장 불확실한 단계)
+  ./03-orca-service.sh    # systemd 서비스 등록
+  ./04-caddy.sh           # Caddy로 HTTPS/WSS 종단
   ./verify-host.sh        # 서버 쪽 점검
-  ./08-agent-cli.sh       # 에이전트 CLI 설치 (로그인은 사람이 직접)
-  ./09-repos.sh           # 레포 클론 + orca 등록
+  ./05-agent-cli.sh       # 에이전트 CLI 설치 (로그인은 사람이 직접)
+  ./06-repos.sh           # 레포 클론 + Orca 등록
 
 그 다음 로컬에서:
   cd terraform && terraform apply -var phase=final

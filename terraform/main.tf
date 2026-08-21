@@ -2,7 +2,6 @@ locals {
   static_ip_name = var.static_ip_name != "" ? var.static_ip_name : "${var.instance_name}-ip"
 }
 
-# scripts/01-provision-instance.sh 의 base64 버그 참고:
 # public_key 는 OpenSSH 공개키 원문을 그대로 받는다 (base64 로 다시 감싸지 않는다).
 resource "aws_lightsail_key_pair" "orca" {
   name       = var.key_pair_name

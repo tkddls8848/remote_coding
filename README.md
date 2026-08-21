@@ -36,8 +36,8 @@
 |---|---|
 | [docs/lightsail-plan.md](docs/lightsail-plan.md) | 구축 계획서. 10단계 절차, 아키텍처, 검증 체크리스트, 리스크 대응 |
 | [docs/decision-log.md](docs/decision-log.md) | 왜 이 구조인지. 개인 PC 호스팅을 접은 이유, EC2·Graviton·IPv6 번들 검토 결과 |
-| [terraform/](terraform/) | AWS 자원(인스턴스·고정 IP·키페어·방화벽) — 계획서 Phase 1·2·7 |
-| [scripts/](scripts/) | 호스트 내부 설정(Orca·systemd·Caddy·에이전트 CLI·레포) — 계획서 Phase 3~6, 8~9 |
+| [terraform/](terraform/) | AWS 자원(인스턴스·고정 IP·키페어·방화벽) |
+| [scripts/](scripts/) | 호스트 내부 설정 01~06(기본 도구·Orca·systemd·Caddy·에이전트 CLI·레포) |
 
 **AWS API로 되는 일과 호스트 안에 들어가야 하는 일이 나뉘어 있다.** 인터넷 쪽으로 어떤 포트가
 열리는지는 `terraform/`이 선언하고, 그 트래픽을 TLS 종단해서 로컬 4224로 넘기는 일은 `scripts/`가
@@ -102,7 +102,7 @@ bash ./scripts/sync-host.sh
 이 리포는 `core.autocrlf=true` 상태에서 체크아웃되면 워크트리의 `.sh`가 **CRLF**가 된다.
 로컬 Git Bash는 CRLF를 견디지만, `sync-host.sh`가 그 파일을 그대로 서버로 복사하고
 **Ubuntu의 bash는 `\r`을 견디지 못한다** (`/usr/bin/env: 'bash\r': No such file or directory`).
-Phase 3에서 터진다. 지금 맞춰 놓는다.
+첫 번째 호스트 설정 스크립트에서 실패한다. 지금 맞춰 놓는다.
 
 ```powershell
 git config core.autocrlf input
@@ -189,14 +189,14 @@ PowerShell로 쓸 거면 `Set-Content -Encoding utf8`은 5.1에서 BOM을 붙이
 |---|---|---|
 | 1 | `terraform apply -var phase=build` (`terraform/`) | PowerShell **(여기서부터 과금)** |
 | 2 | `bash ./scripts/sync-host.sh` | PowerShell |
-| 3 | `ssh ubuntu@<STATIC_IP>` 후 `./03-host-base.sh` | 서버 |
-| 4 | `./04-install-orca.sh` | 서버 |
-| 5 | `./05-orca-service.sh` | 서버 |
-| 6 | `./06-caddy.sh` | 서버 |
+| 3 | `ssh ubuntu@<STATIC_IP>` 후 `./01-host-base.sh` | 서버 |
+| 4 | `./02-install-orca.sh` | 서버 |
+| 5 | `./03-orca-service.sh` | 서버 |
+| 6 | `./04-caddy.sh` | 서버 |
 | 7 | `./verify-host.sh` | 서버 |
 | 8 | `terraform apply -var phase=final` (`terraform/`) | PowerShell |
-| 9 | `./08-agent-cli.sh` | 서버 |
-| 10 | `./09-repos.sh` | 서버 |
+| 9 | `./05-agent-cli.sh` 후 대화형 로그인 | 서버 |
+| 10 | `gh auth login` 후 `./06-repos.sh` | 서버 |
 | — | `terraform plan` (`terraform/`) | PowerShell (언제든 상태 점검) |
 
 모든 스크립트는 여러 번 실행해도 안전하다. 이미 만들어진 자원과 끝난 설정은 건너뛴다.
@@ -204,7 +204,7 @@ PowerShell로 쓸 거면 `Set-Content -Encoding utf8`은 5.1에서 BOM을 붙이
 짚어둘 지점 셋:
 
 1. `terraform apply -var phase=build`가 성공하는 순간부터 $24/mo 과금이 시작된다
-2. `04-install-orca.sh`가 Electron 헤드리스 기동을 실제로 검증한다 — 계획상 가장 불확실한 지점.
+2. `02-install-orca.sh`가 Electron 헤드리스 기동을 실제로 검증한다 — 계획상 가장 불확실한 지점.
    그냥 안 뜨면 `xvfb-run` 래핑으로 자동 우회하고, 그래도 안 되면 거기서 멈춘다
 3. `terraform apply -var phase=final`까지 마치면 공개 포트가 443 하나만 남는다
 

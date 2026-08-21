@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 9 — 레포 클론 + Orca 에 등록.
+# 호스트 설정 6/6 — 레포 클론 + Orca에 등록.
 #
 #   실행 위치: 서버
 #   전제: gh auth login (device flow) 이 끝나 있을 것

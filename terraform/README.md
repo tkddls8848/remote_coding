@@ -1,9 +1,9 @@
 # terraform/
 
-`scripts/01-provision-instance.sh`, `02-firewall-build.sh`, `07-firewall-final.sh`,
-`verify-aws.sh` 가 하던 일(AWS 자원 생성·방화벽)을 대체한다.
+AWS 자원 생성과 방화벽 관리는 이 디렉터리의 Terraform 구성이 담당한다.
 
-호스트 내부 설정(Orca 설치, systemd, Caddy — `scripts/03`~`06`)은 여전히 스크립트다.
+호스트 내부 설정(기본 도구, Orca, systemd, Caddy, 에이전트 CLI, 저장소)은
+`scripts/01-host-base.sh`부터 `06-repos.sh`까지가 담당한다.
 Lightsail 방화벽은 AWS API 호출이라 여기서 선언으로 표현되지만, 그 뒤 트래픽을
 TLS 종단해서 `127.0.0.1:4224`로 넘기는 Caddy 설정은 호스트 안에 들어가야 하는 일이라
 Terraform이 대신할 수 없다.
@@ -19,14 +19,11 @@ terraform init
 AWS 자격증명은 `scripts/`와 동일하게 `aws configure`로 설정한 기본 체인을 그대로 쓴다.
 여기 파일에는 액세스 키를 넣지 않는다.
 
-## 기존 키페어 가져오기
+## 기존 키페어 이름 충돌
 
-`orca-host-key`가 이미 있다면 (수동으로 만들었거나 이전 `scripts/01`을 돌렸다면)
-새로 만들지 말고 state 로 가져온다. 안 하면 `terraform apply`가 이름 충돌로 실패한다.
-
-```powershell
-terraform import aws_lightsail_key_pair.orca orca-host-key
-```
+Lightsail 키페어는 Terraform import를 지원하지 않는다. `orca-host-key`가 이미 있으면
+무작정 삭제하지 말고 사용 중인 인스턴스를 확인한다. 안전한 선택은 `key_pair_name`을 새 이름으로
+바꾸는 것이다. 기존 키를 교체하려면 그 키를 쓰는 인스턴스의 SSH 접근 영향까지 검토한다.
 
 ## 실행
 
@@ -46,7 +43,7 @@ terraform apply -var phase=final
 
 ```powershell
 terraform output              # 고정 IP, ssh 명령, 접속 URL
-terraform plan                 # drift 확인 — scripts/verify-aws.sh 를 대체
+terraform plan                 # drift 확인
 ```
 
 ## 되돌리기

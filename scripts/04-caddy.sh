@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 6 — Caddy 로 HTTPS/WSS 종단, 127.0.0.1:$ORCA_PORT 로 리버스 프록시.
+# 호스트 설정 4/6 — Caddy로 HTTPS/WSS 종단, 127.0.0.1:$ORCA_PORT로 리버스 프록시.
 #
 #   실행 위치: 서버
 #
@@ -7,7 +7,7 @@
 # 막기 때문에, 브라우저 접속을 지원하려면 wss 종단이 반드시 필요하다.
 #
 # 선택: BASIC_AUTH_USER 를 지정하면 페어링 토큰 앞에 인증을 한 겹 더 둔다.
-#   BASIC_AUTH_USER=me BASIC_AUTH_HASH='$2a$14$...' ./06-caddy.sh
+#   BASIC_AUTH_USER=me BASIC_AUTH_HASH='$2a$14$...' ./04-caddy.sh
 #   (해시는 `caddy hash-password` 로 만든다. 평문 비밀번호를 넣지 않는다.)
 
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"

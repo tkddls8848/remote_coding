@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Phase 3 — 기본 툴체인, 스왑, Node, 보안 패치 자동 적용.
+# 호스트 설정 1/6 — 기본 툴체인, 스왑, Node, 보안 패치 자동 적용.
 #
 #   실행 위치: 서버 (ubuntu 계정)
 
@@ -47,4 +47,4 @@ printf 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgr
 ok "보안 패치 자동 적용 켜짐"
 
 free -h
-say "다음: ./04-install-orca.sh"
+say "다음: ./02-install-orca.sh"

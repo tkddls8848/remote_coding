@@ -1,6 +1,5 @@
 # put-instance-public-ports 는 규칙 전체를 교체하는 API 다.
-# scripts/02-firewall-build.sh 와 07-firewall-final.sh 가 "최종 상태 전체"를
-# 각각 따로 적어야 했던 이유이기도 하다. 여기서는 phase 변수 하나로 표현한다.
+# 공개 포트의 최종 상태 전체를 phase 변수 하나로 선언한다.
 
 data "http" "my_ip" {
   count = var.my_ip == "" ? 1 : 0
@@ -16,6 +15,7 @@ locals {
     https = { port = 443, cidrs = ["0.0.0.0/0"] }
   }
   ports_final = {
+    ssh   = { port = 22, cidrs = ["${local.my_ip}/32"] }
     https = { port = 443, cidrs = ["0.0.0.0/0"] }
   }
   ports = var.phase == "build" ? local.ports_build : local.ports_final

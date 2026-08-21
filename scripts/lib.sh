@@ -18,6 +18,8 @@ done
 
 ORCA_PORT="${ORCA_PORT:-4224}"
 DOMAIN="${DOMAIN:-}"
+ORCA_APPIMAGE="${ORCA_APPIMAGE:-/opt/orca/orca-linux.AppImage}"
+ORCA_BIN="${ORCA_BIN:-/opt/orca/squashfs-root/AppRun}"
 
 say()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 ok()   { printf '\033[1;32m  ok\033[0m %s\n' "$*"; }

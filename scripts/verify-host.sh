@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 서버 쪽 점검 (계획서 4절 체크리스트).
+# 서버 쪽 점검 (계획서 검증 절차).
 #
 #   실행 위치: 서버
 #   실패해도 끝까지 돌면서 전부 보여준다.
@@ -43,7 +43,8 @@ echo
 cat <<'TXT'
 
 로컬에서 확인할 나머지:
-  ./scripts/verify-aws.sh     # 방화벽이 443 하나인지
+  terraform -chdir=terraform plan
+  aws lightsail get-instance-port-states --region ap-northeast-2 --instance-name orca-host
 
 사람이 직접 확인할 시나리오:
   1) 데스크탑에서 붙어 워크트리를 만들고 에이전트를 돌린다

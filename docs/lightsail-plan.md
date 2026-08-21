@@ -1,363 +1,337 @@
-# Lightsail 4GB Orca 호스트 구축 계획
+# Lightsail Orca 원격 코딩 호스트 구축 및 운영
 
-> 상태: **계획 단계. 아직 아무 자원도 생성되지 않음.** 이 문서의 명령을 실행하는 시점부터 과금이 시작됩니다.
->
-> 이 문서가 정본이고, 아래 Phase 1~9는 실행 가능한 형태로 옮겨져 있습니다 — 다만 한 군데가 아닙니다.
->
-> | Phase | 담당 | 이유 |
-> |---|---|---|
-> | 1, 2, 7 (인스턴스·고정 IP·방화벽) | [`terraform/`](../terraform/) | AWS API 호출이라 선언형으로 표현된다 |
-> | 3~6, 8, 9 (호스트 내부 설정) | [`scripts/`](../scripts/) | 호스트 안에 들어가야 하는 절차형 작업이라 Terraform이 대신할 수 없다 |
->
-> 아래 각 Phase의 명령은 **참고용 원본**이다. 실제로 실행할 때는 `terraform/README.md` 또는
-> `scripts/README.md`의 절차를 따른다 (순서와 실행 위치가 표로 정리되어 있다).
+> 기준일: 2026-08-21
+> 상태: 저장소에는 Terraform과 호스트 설정 스크립트가 준비되어 있다. 실제 AWS 자원 생성 여부는
+> 문서가 아니라 `terraform -chdir=terraform plan`과 AWS 콘솔에서 확인한다.
 
-## 0. 목표와 완료 조건
+이 문서는 AWS Lightsail에 Orca 헤드리스 런타임을 설치하고 HTTPS/WSS로 연결하는 절차의 정본이다.
+AWS 자원은 [`terraform/`](../terraform/)이, Ubuntu 호스트 내부 설정은 [`scripts/`](../scripts/)가 담당한다.
 
-**목표** — 어느 위치·어느 데스크탑에서든 항상 접근 가능한 개발환경. 에이전트·터미널·워크트리는
-클라우드의 단일 호스트에서만 돌고, 접속하는 기기는 화면만 가져간다.
+## 1. 목표와 완료 조건
 
-**설계 원칙 (이번 방향 전환의 핵심)**
+개발 워크트리, 터미널, 코딩 에이전트는 Lightsail 호스트에서 계속 실행하고 클라이언트는
+Orca 앱 또는 브라우저로 접속한다. 접속 PC의 VPN, 방화벽, 공유기 설정은 변경하지 않는다.
 
-1. **접속하는 쪽 PC는 절대 건드리지 않는다.** VPN 클라이언트 설치, 방화벽 규칙 추가,
-   포트 개방, 상시 프로세스 등록 — 어느 것도 하지 않는다. 앱을 깔거나 브라우저를 여는 게 전부다.
-2. **모든 보안 경계는 서버 쪽에 둔다.** 노출되는 대상은 개인 PC가 아니라 언제든 스냅샷 찍고
-   갈아엎을 수 있는 격리된 VM이다.
-3. **공개 포트는 443 하나.** 런타임 포트는 인터넷에 직접 노출하지 않는다.
+완료 조건은 다음과 같다.
 
-**완료 조건 (Definition of Done)**
+- Orca 데스크톱 앱과 브라우저에서 같은 원격 환경에 접속된다.
+- 클라이언트를 종료해도 서버의 작업과 세션이 유지된다.
+- 재부팅 후 `orca-serve`와 Caddy가 자동으로 다시 실행된다.
+- Orca의 내부 포트 4224는 인터넷에 직접 공개되지 않는다.
+- 구축 완료 후 Lightsail 공개 인바운드 포트는 TCP 443 하나다.
 
-- [ ] 임의의 데스크탑에서 Orca 앱 설치 + 페어링 링크만으로 접속된다 (네트워크 설정 0)
-- [ ] 아무것도 설치할 수 없는 PC에서 브라우저만으로 접속된다
-- [ ] 클라이언트를 모두 끄고 다음 날 다시 붙어도 터미널·에이전트 세션이 그대로 살아있다
-- [ ] 서버 재부팅 후 사람 개입 없이 런타임이 자동 복구된다
-- [ ] Lightsail 방화벽에 열린 인바운드 포트가 443 하나뿐이다
+## 2. 구조
 
----
-
-## 1. 최종 아키텍처
-
-```
- ┌──────────────────────── Lightsail (ap-northeast-2, 4GB) ────────────────────────┐
- │                                                                                 │
- │   Caddy  :443  ──TLS 종단 + WebSocket 프록시──▶  Orca 헤드리스  :4224           │
- │     │                                            (systemd, 자동 재시작)         │
- │     │                                              ├─ 워크트리 / 터미널          │
- │     │                                              ├─ Claude · Codex 세션        │
- │     └─ Let's Encrypt 자동 갱신                     └─ 웹 클라이언트 번들         │
- │                                                                                 │
- │   Lightsail 방화벽: 인바운드 443만 개방                                          │
- └─────────────────────────────────┬───────────────────────────────────────────────┘
-                                   │  https / wss  (인터넷)
-        ┌──────────────────────────┼──────────────────────────┐
-        │                          │                          │
-   데스크탑 Orca 앱           브라우저 (설치 불가 PC)      모바일 Orca 앱
-   페어링 링크 입력            /web-index.html            페어링 코드 입력
-        │                          │                          │
-        └────────── 로컬 PC 설정 변경: 없음 ──────────────────┘
+```text
+클라이언트 Orca / 브라우저
+          │ HTTPS · WSS :443
+          ▼
+Lightsail 공개 방화벽
+          │ TCP 443만 허용
+          ▼
+Caddy ── reverse_proxy ──> 127.0.0.1:4224 Orca
+ TLS                         systemd: orca-serve
 ```
 
-**왜 리버스 프록시인가** — Orca 런타임은 평문 WebSocket(ws)이다. 브라우저는 HTTPS 페이지에서
-평문 ws로 붙는 것을 막기 때문에(앱 내부 메시지: *"This HTTPS page cannot connect to a plain ws://
-Orca server. Open the web client over HTTP or pair with a wss:// endpoint."*), 브라우저 접속을
-지원하려면 wss 종단이 반드시 필요하다. Caddy가 그 역할과 인증서 자동 갱신을 함께 맡는다.
+Caddy는 TLS 인증서 발급·갱신과 WebSocket 프록시를 담당한다. Orca는 4224에서 평문 HTTP/WS로
+동작하지만 Lightsail 방화벽에 4224를 열지 않는다.
 
----
+## 3. 구성 소유권과 번호 체계
 
-## 2. 사전 준비
+| 범위 | 정본 | 내용 |
+|---|---|---|
+| AWS 자원 | `terraform/` | 인스턴스, Lightsail 키페어, 고정 IP, 공개 포트 |
+| 호스트 설정 | `scripts/01`~`06` | 기본 도구, Orca, systemd, Caddy, 에이전트 CLI, 저장소 |
+| 전송·검증 | 번호 없는 보조 스크립트 | `sync-host.sh`, `verify-host.sh` |
+| 사람의 작업 | 자동화하지 않음 | AWS/GitHub/에이전트 로그인, DNS, Orca 페어링 |
 
-| 항목 | 내용 |
-|---|---|
-| AWS 계정 | 서울 리전(ap-northeast-2) 사용 |
-| IAM 권한 | `AmazonLightsailFullAccess` 같은 **관리형 정책은 존재하지 않는다.** `scripts/remotecodepolicy.json`(이 절차가 호출하는 액션만 담은 정책)을 `remotecodepolicy` 라는 고객 관리형 정책으로 만들어 IAM 유저에 연결한다 |
-| 도메인 | 보유 도메인이 있으면 A 레코드 1개. 없으면 `<고정IP>.sslip.io`로 진행 가능 (Let's Encrypt 발급됨) |
-| SSH 키 | Lightsail 키페어. `terraform apply`가 기존 공개키(`~/.ssh/id_ed25519.pub`)를 임포트한다 — 신규 생성 불필요, 없으면 `ssh-keygen`으로 먼저 만든다 |
-| Terraform | 1.5 이상. `terraform/`에서 `terraform init` 한 번 |
-| GitHub | 레포 클론용. 서버에서 `gh auth login` (device flow) |
-| 에이전트 계정 | Claude / Codex — 서버에서 device auth로 로그인 (브라우저 코드 입력) |
+`scripts/` 번호는 호스트 안에서의 실행 순서다. 예전의 전체 Phase 번호를 파일명에 섞지 않는다.
 
-**비용**: Medium-4GB Linux(public IPv4) **$24/mo 정액** (2 vCPU / 4GB / 80GB SSD / 4TB 전송 포함).
-수동 스냅샷은 별도 (GB당 과금). 인스턴스를 삭제하면 과금이 멈춘다.
+## 4. 사전 준비
 
----
+### 4.1 로컬 도구
 
-## 3. 단계별 구축
-
-### Phase 1 — 인스턴스 생성
+Windows 11 PowerShell 기준이다.
 
 ```powershell
-cd terraform
-terraform apply -var phase=build
+aws --version
+terraform -version
+ssh -V
+& "C:\Program Files\Git\bin\bash.exe" --version
 ```
 
-내부적으로 하는 일(`terraform/main.tf`):
-
-```hcl
-resource "aws_lightsail_key_pair" "orca" {
-  name       = "orca-host-key"
-  public_key = file(pathexpand("~/.ssh/id_ed25519.pub"))  # 원문 그대로. base64 로 다시 감싸면 안 된다
-}
-
-resource "aws_lightsail_instance" "orca" {
-  name              = "orca-host"
-  availability_zone = "ap-northeast-2a"
-  blueprint_id      = "ubuntu_24_04"
-  bundle_id         = "medium_3_0"
-  key_pair_name     = aws_lightsail_key_pair.orca.name
-}
-
-resource "aws_lightsail_static_ip" "orca" { name = "orca-host-ip" }
-resource "aws_lightsail_static_ip_attachment" "orca" {
-  static_ip_name = aws_lightsail_static_ip.orca.name
-  instance_name  = aws_lightsail_instance.orca.name
-}
-```
-
-- `medium_3_0` = 4GB 번들. `ubuntu_24_04` = Ubuntu 24.04 LTS. 두 값 모두 서울 리전에서 조회 확인됨.
-- `aws_lightsail_key_pair`는 **재생성이 안 된다** — Lightsail API가 생성 이후 공개키 원문을
-  돌려주지 않아서 `terraform import`를 지원하지 않는다. 기존 키가 있으면 지우고 Terraform이
-  새로 만들게 한다.
-- 실패하면 IAM 권한 문제일 가능성이 높다 (`lightsail:CreateInstances` 등). 2절의 정책이 붙어 있는지 확인할 것.
-- 고정 IP: `terraform output static_ip`로 확인. 재부팅해도 바뀌지 않는다.
-
-### Phase 2 — 방화벽을 먼저 좁힌다
-
-Lightsail은 기본으로 22와 80을 연다. 구축 중에는 SSH만, 완료 후에는 443만 남긴다.
-Phase 1의 `terraform apply -var phase=build`가 이미 이 상태까지 만든다 — 별도 명령이 없다.
-
-내부적으로 하는 일(`terraform/firewall.tf`): `phase=build`일 때 **22(내 공인 IP만) + 80 + 443**을
-열고, `phase=final`일 때 **443**만 남기도록 `aws_lightsail_instance_public_ports`를
-`dynamic` 블록으로 표현한다.
-
-> **80/443을 함께 여는 이유** — Phase 6의 Let's Encrypt 발급은 ACME 챌린지가 인터넷에서
-> 도달해야 성립한다(HTTP-01은 80, TLS-ALPN-01은 443). 구축 단계에 22만 열어두면
-> Phase 6에서 인증서를 받지 못한다. 발급이 끝나면 Phase 7이 443 하나만 남긴다 —
-> **최종 상태는 그대로 443 하나다.**
-
-> `put-instance-public-ports`는 **기존 규칙을 통째로 교체**하는 API다. Terraform에서는
-> `phase` 변수 하나로 "최종 상태 전체"가 자동으로 다시 계산된다.
-
-가정용 회선은 IP가 바뀔 수 있다. 바뀌어서 잠기면 `terraform apply -var phase=build`를
-다시 돌린다 — `my_ip`를 비워두면 매번 `checkip.amazonaws.com`으로 재감지한다. 그래도
-막히면 **Lightsail 콘솔의 브라우저 SSH**로 들어가면 된다 — 이 경로가 있기 때문에 22를
-아예 닫는 최종 상태가 가능하다.
-
-### Phase 3 — 기본 툴체인과 여유 메모리
-
-```bash
-ssh ubuntu@<STATIC_IP>
-
-sudo apt-get update && sudo apt-get upgrade -y
-# Orca 원격 터미널에는 빌드 도구가 필요하다 (없으면 파일/깃/에디터는 되지만 터미널이 안 뜬다)
-sudo apt-get install -y build-essential python3 git curl ca-certificates unzip
-
-# 4GB에서 빌드가 도는 만큼 스왑 2GB를 깔아둔다
-sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
-sudo mkswap /swapfile && sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-
-# Node (에이전트 CLI와 프로젝트 빌드에 사용)
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# 보안 패치 자동 적용
-sudo apt-get install -y unattended-upgrades
-sudo dpkg-reconfigure -plow unattended-upgrades
-```
-
-### Phase 4 — Orca 설치
-
-```bash
-DEB_URL=$(curl -fsSL https://api.github.com/repos/stablyai/orca/releases/latest \
-  | grep -o 'https://[^"]*orca-ide_[^"]*_amd64\.deb' | head -1)
-curl -fsSLO "$DEB_URL"
-sudo apt-get install -y ./orca-ide_*_amd64.deb
-
-orca status
-```
-
-> **리스크**: Orca는 Electron 앱이고 서버에는 디스플레이가 없다. `orca serve`는 헤드리스 서버용으로
-> 문서화된 경로지만, 그래픽 라이브러리 의존성 때문에 기동에 실패할 수 있다.
-> 그럴 경우 `sudo apt-get install -y xvfb` 후 systemd `ExecStart`를 `xvfb-run -a /usr/bin/orca serve ...`로
-> 감싸는 것이 표준 우회다. **이 단계가 이 계획에서 가장 불확실한 지점이므로 여기서 한 번 검증하고 넘어간다.**
-
-### Phase 5 — 런타임을 systemd 서비스로
-
-`/etc/systemd/system/orca-serve.service`
-
-```ini
-[Unit]
-Description=Orca headless runtime
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=ubuntu
-Environment=HOME=/home/ubuntu
-ExecStart=/usr/bin/orca serve --port 4224 --pairing-address wss://<DOMAIN>
-Restart=always
-RestartSec=5
-# 4GB 박스에서 런타임이 메모리를 독점하지 않도록
-MemoryMax=2G
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now orca-serve
-systemctl status orca-serve
-```
-
-- `--pairing-address`는 **클라이언트에게 광고할 주소만** 바꾼다. 실제 바인딩은 로컬 4224 그대로이고,
-  외부에서 4224로 직접 붙는 경로는 Lightsail 방화벽이 막는다.
-- 페어링 링크는 서비스 로그에 나온다: `journalctl -u orca-serve -n 100`.
-  **이 링크는 비밀번호와 동급이다.** 옮길 때 메신저·이슈·문서에 남기지 않는다.
-
-### Phase 6 — Caddy로 HTTPS/WSS 종단
-
-```bash
-sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
-  | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
-  | sudo tee /etc/apt/sources.list.d/caddy-stable.list
-sudo apt-get update && sudo apt-get install -y caddy
-```
-
-`/etc/caddy/Caddyfile`
-
-```
-<DOMAIN> {
-    encode zstd gzip
-
-    # 선택: Orca 페어링 토큰 앞에 인증을 한 겹 더 둔다
-    # basic_auth {
-    #     <USER> <BCRYPT_HASH>     # caddy hash-password 로 생성
-    # }
-
-    reverse_proxy 127.0.0.1:4224
-}
-```
-
-```bash
-sudo systemctl reload caddy
-```
-
-- Caddy는 WebSocket 업그레이드를 자동 처리하고 Let's Encrypt 인증서를 자동 발급·갱신한다.
-- 인증서 발급 중에는 80이 열려 있어야 할 수 있다(HTTP-01). 발급 후 80은 닫아도 갱신은
-  TLS-ALPN으로 이어진다. 발급이 실패하면 80을 잠시 열고 재시도한다.
-- 도메인이 없으면 `<STATIC_IP>.sslip.io`를 그대로 쓸 수 있다.
-
-### Phase 7 — 최종 방화벽: 443만
+필요하면 설치한다.
 
 ```powershell
-cd terraform
-terraform apply -var phase=final
-terraform output open_ports
+winget install --id Amazon.AWSCLI -e
+winget install --id Hashicorp.Terraform -e
+winget install --id Git.Git -e
 ```
 
-이후 서버 접속은 **Lightsail 콘솔의 브라우저 SSH**를 쓴다. SSH를 상시로 열어둘 이유가 없다.
+`Get-Command bash`가 `C:\Windows\System32\bash.exe`를 반환하면 WSL bash다. 이 저장소의
+로컬 셸 스크립트는 Git Bash를 명시해 실행한다.
 
-### Phase 8 — 에이전트 CLI 인증 (대화형, 사람이 직접)
+### 4.2 AWS 인증과 IAM
 
-```bash
-# Claude Code
-npm i -g @anthropic-ai/claude-code && claude      # 출력되는 URL/코드로 브라우저 인증
-
-# Codex
-npm i -g @openai/codex && codex
+```powershell
+$env:AWS_PAGER = ""
+aws configure
+aws sts get-caller-identity
 ```
 
-자동화 불가 구간이다. 화면에 뜨는 코드를 사람이 브라우저에 입력해야 한다.
+Terraform 구성에 액세스 키를 기록하지 않는다. 실행 주체에는
+[`scripts/remotecodepolicy.json`](../scripts/remotecodepolicy.json)의 작업을 허용하는 고객 관리형
+정책을 연결한다. 조직에서 SSO나 역할을 사용하면 장기 액세스 키 대신 해당 자격증명 체인을 사용한다.
 
-### Phase 9 — 레포 등록
+### 4.3 SSH 키와 설정 파일
+
+```powershell
+if (-not (Test-Path "$env:USERPROFILE\.ssh\id_ed25519.pub")) {
+    ssh-keygen -t ed25519 -C "orca-host"
+}
+
+Copy-Item terraform\terraform.tfvars.example terraform\terraform.tfvars
+Copy-Item scripts\config.example.env scripts\config.env
+notepad terraform\terraform.tfvars
+notepad scripts\config.env
+```
+
+- `terraform.tfvars`: 리전, 번들, 이미지, 키 경로, 방화벽 단계
+- `config.env`: 도메인, GitHub 소유자, 등록할 저장소
+- `DOMAIN`을 비우면 `<STATIC_IP>.sslip.io`를 자동 사용한다.
+- 두 파일과 Terraform state는 커밋하지 않는다.
+- 셸 파일과 `config.env`는 BOM 없는 UTF-8, LF 줄바꿈을 사용한다.
+
+### 4.4 번들·이미지 확인
+
+기본값은 서울 리전, Ubuntu 24.04, 4GB Linux/public IPv4 번들이다. AWS의 상품과 ID는 바뀔 수
+있으므로 새로 구축하기 전에 실제 활성 값을 확인한다.
+
+```powershell
+aws lightsail get-bundles --region ap-northeast-2 `
+  --query 'bundles[?isActive && ramSizeInGb==`4`].[bundleId,name,price,cpuCount,diskSizeInGb]' `
+  --output table
+
+aws lightsail get-blueprints --region ap-northeast-2 `
+  --query 'blueprints[?isActive && contains(name, `Ubuntu 24.04`)].[blueprintId,name,version]' `
+  --output table
+```
+
+2026-08-21 공식 AWS 표의 Medium 4GB Linux/public IPv4 기준은 월 USD 24, 2 vCPU,
+4GB RAM, 80GB SSD다. 실제 청구와 리전별 전송량은 구축 시 AWS 가격표와 Billing에서 재확인한다.
+
+## 5. 구축 절차
+
+### 5.1 Terraform 초기화와 검토
+
+저장소 루트에서 실행한다.
+
+```powershell
+terraform -chdir=terraform init
+terraform -chdir=terraform fmt -check
+terraform -chdir=terraform validate
+terraform -chdir=terraform plan -var phase=build
+```
+
+`phase=build`의 공개 포트는 다음과 같다.
+
+- TCP 22: 실행 시 감지한 현재 공인 IP `/32`만 허용
+- TCP 80: 인증서 HTTP-01 검증을 위해 임시 공개
+- TCP 443: HTTPS/WSS와 TLS-ALPN 검증을 위해 공개
+
+### 5.2 인스턴스 생성
+
+```powershell
+terraform -chdir=terraform apply -var phase=build
+terraform -chdir=terraform output
+```
+
+이 작업은 Lightsail 인스턴스, 키페어, 고정 IP와 공개 포트를 만든다. 인스턴스 생성 시점부터
+사용량이 청구된다.
+
+현재 구성의 `aws_lightsail_key_pair`는 로컬 공개키 원문을 Lightsail에 등록한다. Lightsail
+키페어 리소스는 기존 키를 Terraform state로 가져오는 import를 지원하지 않는다. 같은 이름의
+키가 이미 있으면 적용을 반복하지 말고, 사용할 키와 영향받는 인스턴스를 확인한 뒤 기존 키 이름을
+변경하거나 명시적으로 정리한다.
+
+### 5.3 설정과 스크립트 전송
+
+```powershell
+& "C:\Program Files\Git\bin\bash.exe" ./scripts/sync-host.sh
+$ip = terraform -chdir=terraform output -raw static_ip
+ssh ubuntu@$ip
+```
+
+`sync-host.sh`는 `~/orca-host.env`와 실행 스크립트를 서버 홈으로 복사하고 실행 권한을 설정한다.
+
+### 5.4 호스트 기본 설정
+
+서버에서 실행한다.
 
 ```bash
-gh auth login                      # device flow
-mkdir -p ~/orca && cd ~/orca
-git clone https://github.com/tkddls8848/gong-go.git
-git clone https://github.com/tkddls8848/homepage.git
-git clone https://github.com/tkddls8848/naraapi.git
-git clone https://github.com/tkddls8848/pathfinder.git
-git clone https://github.com/tkddls8848/devlog.git
+./01-host-base.sh
+```
 
-for r in gong-go homepage naraapi pathfinder devlog; do orca repo add --path ~/orca/$r; done
+이 스크립트는 패키지를 갱신하고 빌드 도구, Python, Git, curl, Node.js 22를 설치한다. 2GB 스왑과
+비대화형 자동 보안 업데이트도 설정한다. 운영 서비스가 생긴 뒤 재실행하면 패키지 업그레이드가
+발생할 수 있으므로 변경 창에 수행한다.
+
+### 5.5 Orca 설치와 헤드리스 검증
+
+```bash
+./02-install-orca.sh
+```
+
+GitHub의 최신 `orca-ide_*_amd64.deb`를 설치하고 `orca serve`가 `/web-index.html`에 응답하는지
+검사한다. 디스플레이 없이 실패하면 xvfb를 설치해 재검사하고 성공 시
+`~/.orca-needs-xvfb` 플래그를 남긴다. xvfb로도 실패하면 이후 단계를 실행하지 않고 출력 로그를
+확인한다.
+
+### 5.6 Orca systemd 서비스
+
+```bash
+./03-orca-service.sh
+systemctl status orca-serve --no-pager
+```
+
+서비스는 `ubuntu` 사용자로 실행되고 실패 시 자동 재시작한다. 앞 단계의 xvfb 판정을 그대로
+사용하고 메모리 상한을 2GB로 둔다. `--pairing-address`에는 `wss://<DOMAIN>`을 광고한다.
+
+페어링 링크 확인:
+
+```bash
+journalctl -u orca-serve -n 100 --no-pager
+```
+
+페어링 링크는 비밀번호와 동급이다. 저장소, 이슈, 문서, 공개 채널에 남기지 않는다.
+
+### 5.7 Caddy와 HTTPS/WSS
+
+```bash
+./04-caddy.sh
+systemctl status caddy --no-pager
+```
+
+Caddy는 `https://<DOMAIN>`을 `127.0.0.1:4224`로 프록시한다. 사용자 도메인을 쓴다면 실행 전에
+DNS A 레코드가 Terraform의 고정 IP를 가리켜야 한다. 추가 Basic Auth가 필요하면 평문 비밀번호가
+아닌 Caddy 해시를 전달한다.
+
+```bash
+caddy hash-password
+BASIC_AUTH_USER=myuser BASIC_AUTH_HASH='<HASH>' ./04-caddy.sh
+```
+
+### 5.8 서버 검증
+
+```bash
+./verify-host.sh
+```
+
+다음을 모두 확인한다.
+
+- `orca-serve`, `caddy`가 active·enabled 상태
+- 로컬 4224와 외부 HTTPS 웹 번들이 응답
+- 스왑 활성
+- 최근 Orca 로그에 치명적 오류가 없음
+
+### 5.9 에이전트와 GitHub 인증
+
+```bash
+./05-agent-cli.sh
+claude
+codex
+gh auth login
+```
+
+설치는 자동화하지만 브라우저 인증은 사람이 직접 한다. 인증 코드와 토큰을 로그나 설정 파일에
+복사하지 않는다.
+
+### 5.10 저장소 등록
+
+```bash
+./06-repos.sh
 orca repo list
 ```
 
-### Phase 10 — 클라이언트 연결
+`~/orca/<repo>`에 저장소를 복제하고 Orca에 등록한다. 대상은 로컬 `scripts/config.env`의
+`REPOS`, `GITHUB_OWNER`에서 관리하며 `sync-host.sh`를 다시 실행해야 서버 설정에 반영된다.
 
-| 기기 | 방법 |
-|---|---|
-| 데스크탑 (설치 가능) | Orca 설치 → Settings → Remote Orca Servers → Add Server → 페어링 링크 붙여넣기.<br>CLI로는 `orca environment add --name cloud --pairing-code "<링크>"` |
-| 설치 불가 PC | 브라우저에서 `https://<DOMAIN>/web-index.html` → 페어링. 일부 데스크탑 전용 기능은 제한됨 |
-| 모바일 | 앱 계정 메뉴에서 페어링 코드 발급 후 입력. 코드는 몇 분 뒤 만료되므로 그때그때 새로 발급 |
+### 5.11 최종 방화벽 전환
 
-**어느 경우에도 접속하는 PC의 네트워크 설정은 건드리지 않는다.**
-
----
-
-## 4. 검증 체크리스트
-
-```bash
-systemctl is-active orca-serve caddy          # 둘 다 active
-curl -I https://<DOMAIN>/web-index.html       # 200
-free -h                                        # 스왑 잡혀 있는지
-journalctl -u orca-serve --since "10 min ago" # 에러 없는지
-```
+서버 검증과 필요한 SSH 작업을 마친 뒤 로컬에서 실행한다.
 
 ```powershell
-terraform -chdir=terraform plan               # drift 없음, 443만 열려 있어야 함
+terraform -chdir=terraform apply -var phase=final
+terraform -chdir=terraform output open_ports
+
+aws lightsail get-instance-port-states --region ap-northeast-2 `
+  --instance-name orca-host --output table
 ```
 
-그리고 실제 시나리오로:
+`phase=final`은 기존 공개 포트 규칙 전체를 TCP 443 하나로 교체한다. 이후 일반 SSH 접속이 막히는
+것은 정상이다. 관리가 필요하면 Lightsail 브라우저 SSH를 사용하거나 잠시 `phase=build`를 적용하고,
+작업 직후 `phase=final`로 복구한다.
 
-1. 데스크탑에서 붙어 워크트리를 만들고 에이전트를 돌린다
-2. 클라이언트를 완전히 종료한다
-3. 다른 기기(또는 브라우저)로 붙어 **같은 세션이 그대로인지** 확인한다
-4. `sudo reboot` 후 사람 개입 없이 다시 붙는지 확인한다
+## 6. 클라이언트 연결과 인수 테스트
 
----
-
-## 5. 운영
-
-| 작업 | 명령 / 방법 |
+| 클라이언트 | 연결 방법 |
 |---|---|
-| 스냅샷 | `aws lightsail create-instance-snapshot --region ap-northeast-2 --instance-name orca-host --instance-snapshot-name orca-host-$(date +%Y%m%d)` (GB당 과금) |
-| 스펙 상향 | 스냅샷 → 상위 번들로 새 인스턴스 생성 → 고정 IP 재부착 |
-| Orca 업데이트 | 최신 .deb 재설치 후 `sudo systemctl restart orca-serve` |
-| 로그 | `journalctl -u orca-serve -f`, `journalctl -u caddy -f` |
-| 접근 회수 | Orca 설정의 Shared Server Access에서 개별 grant 취소 |
-| 비용 확인 | AWS Billing 콘솔. 정액이라 예측 가능 |
-| 완전 삭제 | `terraform destroy` (`terraform/`) — 인스턴스·고정 IP·키페어 한 번에, 과금 중단 |
+| Orca 데스크톱 | Remote Orca Servers에서 서비스 로그의 페어링 링크 추가 |
+| 브라우저 | `https://<DOMAIN>/web-index.html` 열기 |
+| Orca CLI 지원 환경 | `orca environment add --name cloud --pairing-code "<PAIRING_LINK>"` |
 
----
+기능과 메뉴 이름은 Orca 버전에 따라 달라질 수 있으므로 설치된 클라이언트의 안내를 우선한다.
 
-## 6. 리스크와 대응
+인수 테스트:
 
-| 리스크 | 영향 | 대응 |
-|---|---|---|
-| **Electron 헤드리스 기동 실패** | 구축 중단 | Phase 4에서 선검증. 실패 시 `xvfb-run`으로 래핑 |
-| 443이 인터넷에 공개됨 | 스캐너 노출 | Caddy basic_auth 추가, Orca 페어링 토큰, fail2ban, 접근 로그 주기 확인 |
-| 페어링 링크 유출 | 런타임 무단 접근 | Shared Server Access에서 즉시 회수. 링크를 평문으로 남기지 않기 |
-| 4GB 부족 | 빌드 실패, OOM | 스왑 2GB 선반영. 지속되면 8GB($44) 번들로 상향 |
-| 가정 IP 변동으로 SSH 잠김 | 접속 불가 | `terraform apply -var phase=build` 재실행(자동 재감지) 또는 Lightsail 브라우저 SSH 콘솔로 우회 (최종 상태에서는 22를 아예 닫음) |
-| 인증서 발급 실패 | 브라우저 접속 불가 | 80을 잠시 열고 재발급. 도메인 없으면 `sslip.io` |
-| 로컬에만 있던 환경 이관 누락 | 일부 작업 불가 | Docker·에뮬레이터·로컬 DB는 서버에 별도 구성 필요. 4GB에서는 Docker 동시 사용에 주의 |
-| Terraform state 유실 | 리소스 추적 불가 (자원 자체는 남음) | 로컬 1인 프로젝트라 원격 backend 없음. `terraform/README.md` 참고 — 최악의 경우 콘솔에서 확인 후 `terraform import` |
+1. 클라이언트에서 저장소와 터미널을 연다.
+2. 코딩 에이전트 작업을 시작하고 클라이언트를 완전히 종료한다.
+3. 다른 클라이언트로 접속해 서버 작업이 유지되는지 확인한다.
+4. 서버를 재부팅하고 `orca-serve`, Caddy와 원격 접속이 자동 복구되는지 확인한다.
+5. `terraform -chdir=terraform plan`에서 의도하지 않은 변경이 없는지 확인한다.
 
----
+## 7. 운영
 
-## 7. 이번 계획에서 **하지 않는** 것
+| 목적 | 명령 또는 방법 |
+|---|---|
+| 상태 | `systemctl status orca-serve caddy --no-pager` |
+| Orca 로그 | `journalctl -u orca-serve -f` |
+| Caddy 로그 | `journalctl -u caddy -f` |
+| 서비스 재시작 | `sudo systemctl restart orca-serve` |
+| AWS drift 확인 | `terraform -chdir=terraform plan` |
+| 공인 포트 확인 | `aws lightsail get-instance-port-states --region ap-northeast-2 --instance-name orca-host` |
+| 수동 스냅샷 | `aws lightsail create-instance-snapshot --region ap-northeast-2 --instance-name orca-host --instance-snapshot-name <NAME>` |
+| 스펙 상향 | 스냅샷으로 상위 번들 인스턴스 생성 후 검증하고 고정 IP 재부착 |
+| 완전 삭제 | `terraform -chdir=terraform destroy` |
 
-- 접속하는 PC에 VPN·터널·에이전트 설치 — **하지 않는다**
-- 로컬 방화벽 규칙 추가/변경, 포트 개방 — **하지 않는다**
-- 공유기 포트포워딩 — **하지 않는다**
-- 로컬 PC에 상시 프로세스·예약 작업 등록 — **하지 않는다**
-- 개인 PC를 외부에 노출 — **하지 않는다**
+스냅샷, 데이터 전송, 세금 등은 인스턴스 번들과 별도로 청구될 수 있다. 삭제 전 필요한 워크트리,
+자격증명, 미푸시 커밋을 백업한다.
 
-접속하는 쪽에서 하는 일은 앱을 설치하거나 브라우저 주소창에 URL을 넣는 것, 그리고 페어링 링크를
-붙여넣는 것뿐이다.
+## 8. 장애 대응
+
+| 증상 | 점검과 대응 |
+|---|---|
+| SSH 접속 거부 | 현재 공인 IP가 바뀌었는지 확인하고 `phase=build` 재적용 또는 브라우저 SSH 사용 |
+| Orca 기동 실패 | `journalctl -u orca-serve`; `~/.orca-needs-xvfb`; 4224 충돌 확인 |
+| HTTPS 인증서 실패 | DNS가 고정 IP를 가리키는지, build 단계에서 80/443이 열렸는지, Caddy 로그 확인 |
+| 브라우저는 열리지만 페어링 실패 | `--pairing-address`, WSS 주소, Orca/Caddy 로그 확인 |
+| 메모리 부족 | `free -h`, `systemd-cgtop`, 커널 OOM 로그 확인 후 작업량 축소 또는 상위 번들 검토 |
+| 페어링 링크 유출 | Orca 접근 권한에서 즉시 회수하고 새 링크로 재페어링 |
+| Terraform 키페어 이름 충돌 | Lightsail 키페어는 import 불가. 기존 키의 사용처를 확인한 뒤 이름 변경 또는 명시적 교체 |
+| Terraform state 유실 | 무작정 apply하지 말고 AWS 자원을 조사해 import 가능한 자원부터 state 복구. 키페어는 재구성 필요 |
+
+## 9. 보안 원칙
+
+- 최종 공개 포트는 443만 유지한다.
+- 4224, 데이터베이스, 개발 서버 포트를 인터넷에 직접 열지 않는다.
+- AWS·GitHub·에이전트 토큰과 페어링 링크를 Git에 커밋하지 않는다.
+- `terraform.tfstate`도 비밀정보가 포함될 수 있는 민감 파일로 취급한다.
+- 운영 중 패키지 업그레이드와 스크립트 재실행은 변경 창에 수행한다.
+- 불필요해진 인스턴스, 고정 IP, 스냅샷은 비용과 복구 필요성을 확인한 뒤 정리한다.
+
+## 10. 공식 참고 자료
+
+- [Amazon Lightsail 인스턴스 번들](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-bundles.html)
+- [AWS CLI `get-bundles`](https://docs.aws.amazon.com/cli/latest/reference/lightsail/get-bundles.html)
+- [AWS CLI `put-instance-public-ports`](https://docs.aws.amazon.com/cli/latest/reference/lightsail/put-instance-public-ports.html)
+- [Terraform `aws_lightsail_key_pair`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lightsail_key_pair)
