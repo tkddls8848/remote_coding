@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
-# 호스트 설정 5/6 — 에이전트 CLI 설치.
+# 호스트 설정 2/3 — Claude Code와 Codex CLI 설치.
 #
-#   실행 위치: 서버
-#
-# 설치까지만 자동이다. 로그인은 device auth 라서 화면에 뜨는 코드를 사람이
-# 브라우저에 입력해야 한다 — 자동화할 수 없는 구간이다.
+#   실행 위치: 서버 (ubuntu 계정)
 
-. "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../util/lib.sh"
 
 need node
 need npm
@@ -25,7 +22,7 @@ cat <<'TXT'
   codex       # 동일
 
 두 CLI 모두 로그인 상태가 홈 디렉터리에 저장되므로, 한 번 해두면
-이후 서버 재부팅이나 클라이언트 재접속에 다시 필요하지 않다.
+이후 서버 재부팅이나 SSH 재접속에 다시 필요하지 않다.
 
-다음: ./06-repos.sh
+다음: ./install/03-repos.sh
 TXT

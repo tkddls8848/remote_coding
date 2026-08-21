@@ -10,13 +10,10 @@ locals {
   my_ip = var.my_ip != "" ? var.my_ip : chomp(data.http.my_ip[0].response_body)
 
   ports_build = {
-    ssh   = { port = 22, cidrs = ["${local.my_ip}/32"] }
-    http  = { port = 80, cidrs = ["0.0.0.0/0"] }
-    https = { port = 443, cidrs = ["0.0.0.0/0"] }
+    ssh = { port = 22, cidrs = ["${local.my_ip}/32"] }
   }
   ports_final = {
-    ssh   = { port = 22, cidrs = ["${local.my_ip}/32"] }
-    https = { port = 443, cidrs = ["0.0.0.0/0"] }
+    ssh = { port = 22, cidrs = ["${local.my_ip}/32"] }
   }
   ports = var.phase == "build" ? local.ports_build : local.ports_final
 }

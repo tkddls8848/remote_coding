@@ -1,0 +1,21 @@
+# terraform.tfvars 로 복사해서 쓴다. terraform.tfvars 는 .gitignore 에 있다.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+
+region = "ap-northeast-2"
+
+# CLI 개발 + stock_chatbot 통합 기본값: 2GB RAM, 2 vCPU.
+bundle_id = "small_3_0"
+
+# 이 배포가 생성할 Lightsail 리소스 이름.
+instance_name  = "orca-host"
+key_pair_name  = "orca-host-key"
+static_ip_name = "orca-host-ip"
+
+# CLI 전용 구성은 build/final 모두 22(내 IP만)를 유지한다.
+#   terraform apply -var phase=build
+#   terraform apply                    # 기본값 final
+phase = "final"
+
+# 비워두면 checkip.amazonaws.com 으로 자동 감지한다.
+# my_ip = "203.0.113.10"

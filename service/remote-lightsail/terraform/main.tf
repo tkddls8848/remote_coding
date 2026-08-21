@@ -16,7 +16,7 @@ resource "aws_lightsail_instance" "orca" {
   key_pair_name     = aws_lightsail_key_pair.orca.name
 
   tags = {
-    project = "orca-host"
+    project = var.instance_name
   }
 }
 

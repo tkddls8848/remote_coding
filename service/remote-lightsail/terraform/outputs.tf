@@ -3,14 +3,19 @@ output "static_ip" {
   value       = aws_lightsail_static_ip.orca.ip_address
 }
 
+output "instance_name" {
+  description = "Lightsail 인스턴스 이름"
+  value       = aws_lightsail_instance.orca.name
+}
+
 output "ssh_command" {
   description = "서버 접속 명령"
   value       = "ssh ubuntu@${aws_lightsail_static_ip.orca.ip_address}"
 }
 
-output "web_url" {
-  description = "도메인이 없을 때 쓰는 sslip.io 접속 주소 (443 이 열려 있을 때만 응답)"
-  value       = "https://${aws_lightsail_static_ip.orca.ip_address}.sslip.io/web-index.html"
+output "tmux_command" {
+  description = "SSH로 접속해 개발 tmux 세션을 열거나 재접속하는 명령"
+  value       = "ssh -t ubuntu@${aws_lightsail_static_ip.orca.ip_address} tmux new -As dev"
 }
 
 output "phase" {

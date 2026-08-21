@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# 모든 호스트 설정 스크립트가 공통으로 쓰는 설정 로딩 / 출력 / 가드.
+# 직접 실행하지 않고 source 한다.
+#
+# AWS 자원(인스턴스/고정 IP/방화벽) 조회·생성은 여기 없다 — ../../terraform 이 담당한다.
+# 이 파일은 install/ 및 util/ 스크립트에서만 쓴다.
+
+set -euo pipefail
+
+UTIL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$UTIL_DIR/.." && pwd)"
+TF_DIR="$SCRIPT_DIR/../terraform"
+
+# 설정: scripts/config.env (로컬) 또는 scripts/host.env (서버) 에서 읽는다.
+for f in "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/host.env"; do
+    # shellcheck disable=SC1090
+    [ -f "$f" ] && . "$f"
+done
+
+STOCK_CHATBOT_SERVICE="${STOCK_CHATBOT_SERVICE:-stock-chatbot}"
+
+say()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+ok()   { printf '\033[1;32m  ok\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m  !!\033[0m %s\n' "$*" >&2; }
+die()  { printf '\033[1;31m  xx\033[0m %s\n' "$*" >&2; exit 1; }
+
+need() { command -v "$1" >/dev/null 2>&1 || die "'$1' 가 필요하다. 먼저 설치할 것."; }
+
+# terraform/ 의 output 값을 읽는다. 아직 apply 되지 않았으면 빈 문자열.
+tf_output() {
+    ( cd "$TF_DIR" && terraform output -raw "$1" 2>/dev/null ) || true
+}

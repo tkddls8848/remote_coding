@@ -11,9 +11,9 @@ variable "instance_name" {
 }
 
 variable "bundle_id" {
-  description = "요금제. 4GB = medium_3_0, 8GB 로 올릴 때는 large_3_0"
+  description = "요금제. CLI + stock_chatbot 기본값은 2GB small_3_0"
   type        = string
-  default     = "medium_3_0"
+  default     = "small_3_0"
 }
 
 variable "blueprint_id" {
@@ -23,13 +23,13 @@ variable "blueprint_id" {
 }
 
 variable "key_pair_name" {
-  description = "Lightsail 키페어 이름. 이미 존재하면 terraform import 로 가져와 쓴다."
+  description = "Lightsail에 등록할 키페어 이름. 같은 이름이 이미 있으면 다른 이름을 사용한다."
   type        = string
   default     = "orca-host-key"
 }
 
 variable "ssh_public_key_path" {
-  description = "임포트할 공개키 경로. ~ 는 자동으로 홈 디렉터리로 풀린다."
+  description = "Lightsail에 등록할 OpenSSH 공개키 경로. ~ 는 자동으로 홈 디렉터리로 풀린다."
   type        = string
   default     = "~/.ssh/id_ed25519.pub"
 }
@@ -43,8 +43,8 @@ variable "static_ip_name" {
 variable "phase" {
   description = <<-EOT
     방화벽 최종 상태.
-      build = 22(내 IP만) + 80 + 443  — 구축 중, Let's Encrypt 인증서 발급에 80/443 필요
-      final = 443만                   — 평상시
+      build = 22(내 IP만) — 호스트 구축 및 SSH CLI 접속
+      final = 22(내 IP만) — 평상시; CLI 전용 구성은 SSH를 계속 사용
   EOT
   type        = string
   default     = "final"

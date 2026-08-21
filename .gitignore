@@ -14,67 +14,67 @@ backup/
 Thumbs.db
 .DS_Store
 
+# ─────────────────────────────────────────────────────────────
+# service/remote-lightsail/ — CLI 개발 + stock_chatbot 호스트
+# ─────────────────────────────────────────────────────────────
+
 # 스크립트 실행값 (도메인/IP 등 실제 값)
-scripts/config.env
+service/remote-lightsail/scripts/config.env
 
 # Terraform — state 에 리소스 상세(IP 등)가 그대로 담긴다.
 # .terraform.lock.hcl 은 provider 버전 고정용이라 예외적으로 커밋한다.
-terraform/.terraform/
-terraform/*.tfstate
-terraform/*.tfstate.*
-terraform/*.tfvars
-!terraform/terraform.tfvars.example
-terraform/crash.log
-terraform/crash.*.log
+service/remote-lightsail/terraform/.terraform/
+service/remote-lightsail/terraform/*.tfstate
+service/remote-lightsail/terraform/*.tfstate.*
+service/remote-lightsail/terraform/*.tfvars
+!service/remote-lightsail/terraform/terraform.tfvars.example
+service/remote-lightsail/terraform/crash.log
+service/remote-lightsail/terraform/crash.*.log
 
 # ─────────────────────────────────────────────────────────────
-# systems/ — 랩 공통. forfun 흡수를 앞두고 미리 넣는다.
+# infra-labs/systems/ — forfun 에서 이관한 랩 공통 규칙.
 #
 # forfun 쪽 원본 규칙은 전부 `devops/systems/**` 접두사로 쓰여 있었는데 실제 경로는
 # `systems/**` 였다. 폴더를 옮기면서 .gitignore 를 안 고친 탓에 VM 디스크 이미지,
-# kubeconfig, 클러스터 join 시크릿이 아무것도 막히지 않는 상태였다.
-# 여기서는 접두사를 걷어내고 다시 쓴다. 자세한 경위는
-# docs/forfun-consolidation-plan.md 의 1-D.
-#
-# 파일이 들어오기 전에 규칙을 먼저 둔다 — 순서가 반대면 한 번의 `git add -A` 로
-# 샌다. 랩이 아직 없으므로 지금은 아무 파일에도 영향을 주지 않는다.
+# kubeconfig, 클러스터 join 시크릿이 아무것도 막히지 않는 상태였다. 그 사고를
+# 반복하지 않으려면 이 저장소의 폴더 구조가 바뀔 때마다 아래 접두사도 같이 고친다.
 # ─────────────────────────────────────────────────────────────
 
 # OpenTofu / Terraform 상태
-#   tfvars 는 랩마다 플레이스홀더라 의도적으로 커밋한다 — 위 terraform/ 과 다르다
-systems/**/.terraform/
-systems/**/*.tfstate
-systems/**/*.tfstate.*
-systems/**/.terraform.tfstate.lock.info
-systems/**/crash.log
+#   tfvars 는 랩마다 플레이스홀더라 의도적으로 커밋한다 — 위 remote-lightsail/terraform/ 과 다르다
+infra-labs/systems/**/.terraform/
+infra-labs/systems/**/*.tfstate
+infra-labs/systems/**/*.tfstate.*
+infra-labs/systems/**/.terraform.tfstate.lock.info
+infra-labs/systems/**/crash.log
 
 # VM 디스크 / 설치 이미지
-systems/**/*.vdi
-systems/**/*.vmdk
-systems/**/*.qcow2
-systems/**/*.img
-systems/**/*.iso
-systems/**/*.box
-systems/**/.vagrant/
+infra-labs/systems/**/*.vdi
+infra-labs/systems/**/*.vmdk
+infra-labs/systems/**/*.qcow2
+infra-labs/systems/**/*.img
+infra-labs/systems/**/*.iso
+infra-labs/systems/**/*.box
+infra-labs/systems/**/.vagrant/
 
 # 클러스터 자격증명 / join 시크릿
-systems/**/kubeconfig
-systems/**/kubeconfig-*
-systems/**/admin.conf
-systems/**/join-command.sh
-systems/**/worker_join.sh
+infra-labs/systems/**/kubeconfig
+infra-labs/systems/**/kubeconfig-*
+infra-labs/systems/**/admin.conf
+infra-labs/systems/**/join-command.sh
+infra-labs/systems/**/worker_join.sh
 
 # 프로비저너 스크래치
-systems/**/*.retry
-systems/**/.ansible/
-systems/**/.cache/
-systems/**/.generated/
-systems/**/.lab/
-systems/**/tmp/
+infra-labs/systems/**/*.retry
+infra-labs/systems/**/.ansible/
+infra-labs/systems/**/.cache/
+infra-labs/systems/**/.generated/
+infra-labs/systems/**/.lab/
+infra-labs/systems/**/tmp/
 
 # in-tree 로 클론되는 업스트림 레포
-systems/**/rook/
-systems/**/kubespray-repo/
+infra-labs/systems/**/rook/
+infra-labs/systems/**/kubespray-repo/
 
 # 에이전트 로컬 설정
 **/.claude

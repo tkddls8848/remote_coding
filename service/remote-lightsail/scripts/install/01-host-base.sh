@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# 호스트 설정 1/6 — 기본 툴체인, 스왑, Node, 보안 패치 자동 적용.
+# 호스트 설정 1/3 — CLI 개발 + stock_chatbot 공통 툴체인, 스왑, Node, 보안 패치.
 #
 #   실행 위치: 서버 (ubuntu 계정)
 
-. "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../util/lib.sh"
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -12,8 +12,8 @@ sudo apt-get update -qq
 sudo apt-get upgrade -y -qq
 
 say "빌드 도구 설치"
-# Orca 원격 터미널에 필요하다. 없으면 파일·깃·에디터는 되지만 터미널이 뜨지 않는다.
-sudo apt-get install -y -qq build-essential python3 git curl ca-certificates unzip
+# Python venv는 stock_chatbot, tmux는 SSH CLI 세션 유지에 사용한다.
+sudo apt-get install -y -qq build-essential python3 python3-venv git curl ca-certificates unzip tmux
 
 # --- 스왑 2GB ---------------------------------------------------------------
 if swapon --show | grep -q '/swapfile'; then
@@ -47,4 +47,4 @@ printf 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgr
 ok "보안 패치 자동 적용 켜짐"
 
 free -h
-say "다음: ./02-install-orca.sh"
+say "다음: ./install/02-agent-cli.sh"
