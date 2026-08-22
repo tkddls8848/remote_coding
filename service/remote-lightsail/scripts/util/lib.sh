@@ -27,6 +27,11 @@ die()  { printf '\033[1;31m  xx\033[0m %s\n' "$*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "'$1' 가 필요하다. 먼저 설치할 것."; }
 
 # terraform/ 의 output 값을 읽는다. 아직 apply 되지 않았으면 빈 문자열.
+# 주의: output 이 없을 때 terraform 은 exit 0 으로 "Warning: No outputs found" 를
+#       stdout 에 흘린다. 그대로 두면 경고문이 값으로 잡히므로 걸러낸다.
 tf_output() {
-    ( cd "$TF_DIR" && terraform output -raw "$1" 2>/dev/null ) || true
+    local v
+    v="$( cd "$TF_DIR" && terraform output -no-color -raw "$1" 2>/dev/null )" || return 0
+    case "$v" in *"No outputs found"* | *"Warning:"* | *"Error:"*) return 0 ;; esac
+    printf '%s' "$v"
 }

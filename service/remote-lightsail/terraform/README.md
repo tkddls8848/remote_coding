@@ -18,6 +18,10 @@ terraform -chdir=service/remote-lightsail/terraform plan
 terraform -chdir=service/remote-lightsail/terraform apply
 ```
 
+인프라 생성과 호스트 스크립트 복사를 한 번에 하려면 위 대신
+[`../scripts/util/provision-host.sh`](../scripts/util/provision-host.sh)를 실행한다. 내부에서
+같은 `init`/`apply`를 돌린 뒤 SSH가 열릴 때까지 기다렸다가 `sync-host.sh`까지 이어서 수행한다.
+
 `my_ip`를 비우면 Terraform이 현재 공인 IP를 조회한다. 네트워크가 바뀌어 SSH가 막히면
 `terraform apply`를 다시 실행해 `/32` 규칙을 갱신한다.
 

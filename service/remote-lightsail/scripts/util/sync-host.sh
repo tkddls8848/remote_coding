@@ -17,6 +17,10 @@ export STATIC_IP
 
 say "대상: ubuntu@$STATIC_IP"
 
+# 기본 키가 아닌 키로 만든 인스턴스면 provision-host.sh 가 SSH_KEY 를 넘겨준다.
+SSH_ARGS=(-o StrictHostKeyChecking=accept-new)
+[ -n "${SSH_KEY:-}" ] && SSH_ARGS+=(-o IdentitiesOnly=yes -i "$SSH_KEY")
+
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
 cat > "$tmp" <<TXT
@@ -26,10 +30,10 @@ GITHUB_OWNER="${GITHUB_OWNER:-}"
 STOCK_CHATBOT_SERVICE="${STOCK_CHATBOT_SERVICE:-stock-chatbot}"
 TXT
 
-ssh "ubuntu@$STATIC_IP" 'rm -rf ~/remote-lightsail-scripts && mkdir -p ~/remote-lightsail-scripts'
-scp -qr "$SCRIPT_DIR"/install "$SCRIPT_DIR"/util "ubuntu@$STATIC_IP:~/remote-lightsail-scripts/"
-scp -q "$tmp" "ubuntu@$STATIC_IP:~/remote-lightsail-scripts/host.env"
-ssh "ubuntu@$STATIC_IP" 'find ~/remote-lightsail-scripts -type f -name "*.sh" -exec chmod +x {} +'
+ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'rm -rf ~/remote-lightsail-scripts && mkdir -p ~/remote-lightsail-scripts'
+scp "${SSH_ARGS[@]}" -qr "$SCRIPT_DIR"/install "$SCRIPT_DIR"/util "ubuntu@$STATIC_IP:~/remote-lightsail-scripts/"
+scp "${SSH_ARGS[@]}" -q "$tmp" "ubuntu@$STATIC_IP:~/remote-lightsail-scripts/host.env"
+ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'find ~/remote-lightsail-scripts -type f -name "*.sh" -exec chmod +x {} +'
 ok "복사 완료"
 
 cat <<TXT
