@@ -30,9 +30,10 @@ terraform -chdir=service/remote-lightsail/terraform workspace new tokyo
 terraform -chdir=service/remote-lightsail/terraform apply
 ```
 
-기존 배포는 `default` workspace 에 그대로 남는다. Lightsail 리소스 이름은 리전별로 관리되므로
-`instance_name`·`static_ip_name`·`key_pair_name` 을 그대로 써도 다른 리전의 것과 충돌하지 않는다.
-같은 AWS 계정 안에서 이름으로 구분하고 싶으면 `terraform.tfvars` 에서 바꾼다.
+기존 배포는 `default` workspace 에 그대로 남는다. 리소스 이름 기본값은 `orca-host-tokyo`,
+`orca-host-tokyo-key`, `orca-host-tokyo-ip` 라서 다른 리전의 기존 `orca-host` 계열과 콘솔에서 바로
+구분된다. Lightsail 이름은 리전별로 관리되어 같은 이름을 써도 충돌하지는 않지만, 한 계정에서 두
+대를 함께 볼 때를 위해 리전 접미사를 기본값으로 둔다.
 
 새로 만든 인스턴스는 고정 IP가 새로 발급되므로, 접속 주소와 `~/.ssh/known_hosts` 는 새 IP 기준으로
 쓴다. 다른 AZ가 필요하면 `aws lightsail get-regions --include-availability-zones --region ap-northeast-1`

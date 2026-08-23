@@ -11,9 +11,9 @@ region = "ap-northeast-1"
 bundle_id = "medium_3_0"
 
 # 이 배포가 생성할 Lightsail 리소스 이름.
-instance_name  = "orca-host"
-key_pair_name  = "orca-host-key"
-static_ip_name = "orca-host-ip"
+instance_name  = "orca-host-tokyo"
+key_pair_name  = "orca-host-tokyo-key"
+static_ip_name = "orca-host-tokyo-ip"
 
 # build/final 모두 22(내 IP만)를 유지한다. Orca 6768은 절대 공인망에 열지 않는다.
 #   terraform apply -var phase=build
