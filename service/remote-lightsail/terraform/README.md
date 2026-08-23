@@ -16,19 +16,27 @@ terraform -chdir=service/remote-lightsail/terraform apply
 
 `phase=build|final`은 기존 state 호환성을 위해 유지하며 현재 두 값의 방화벽 결과는 같다.
 
-## 리전 변경
+## 도쿄 신규 배포
 
-리전을 바꾸면 Lightsail 인스턴스·고정 IP·키페어가 모두 새 리전에 새로 만들어진다. 기존 리전의
-리소스는 state에서 사라질 뿐 자동으로 지워지지 않으므로, 옮기기 전에 이 순서를 따른다.
+기본 리전이 도쿄(`ap-northeast-1`)이므로 그대로 `apply` 하면 도쿄에 인스턴스·고정 IP·키페어가
+새로 만들어진다. 인스턴스는 `ap-northeast-1a` 에 놓인다(`availability_zone` 은 `<region>a` 로 유도).
 
-1. 기존 리전에서 스냅샷과 `/home/orca/.config/{orca,Orca}`, `/home/orca/workspace` 백업을 만든다.
-2. 기존 리전 값으로 `terraform destroy` 를 실행해 옛 인스턴스와 고정 IP를 정리한다.
-   (`terraform -chdir=... destroy -var region=ap-northeast-2`)
-3. `region` 을 새 값으로 두고 `terraform init -reconfigure` 후 `apply` 한다.
-4. 고정 IP가 바뀌므로 SSH 접속 주소와 `~/.ssh/known_hosts` 항목을 갱신한다.
+다른 리전에 이미 배포한 것이 로컬 state 에 있다면, 같은 state 에서 리전만 바꿔 `apply` 하지 않는다.
+provider 리전이 바뀌면 기존 리소스를 조회하지 못해 state 에서 빠지고(실물은 계정에 그대로 남는다)
+새 리전에 새로 만들려 한다. 도쿄를 별개 배포로 두려면 state 를 분리한다.
 
-`availability_zone` 은 `<region>a` 로 유도한다. 다른 AZ가 필요하면
-`aws lightsail get-regions --include-availability-zones --region <리전>` 으로 확인한다.
+```powershell
+terraform -chdir=service/remote-lightsail/terraform workspace new tokyo
+terraform -chdir=service/remote-lightsail/terraform apply
+```
+
+기존 배포는 `default` workspace 에 그대로 남는다. Lightsail 리소스 이름은 리전별로 관리되므로
+`instance_name`·`static_ip_name`·`key_pair_name` 을 그대로 써도 다른 리전의 것과 충돌하지 않는다.
+같은 AWS 계정 안에서 이름으로 구분하고 싶으면 `terraform.tfvars` 에서 바꾼다.
+
+새로 만든 인스턴스는 고정 IP가 새로 발급되므로, 접속 주소와 `~/.ssh/known_hosts` 는 새 IP 기준으로
+쓴다. 다른 AZ가 필요하면 `aws lightsail get-regions --include-availability-zones --region ap-northeast-1`
+로 확인한다.
 
 ## 용량
 
