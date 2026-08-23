@@ -2,7 +2,8 @@
 #
 #   cp terraform.tfvars.example terraform.tfvars
 
-region = "ap-northeast-2"
+# 도쿄 리전. 리전을 바꾸면 인스턴스·고정 IP가 새로 만들어진다(README "리전 변경" 참고).
+region = "ap-northeast-1"
 
 # Orca + 단일 코딩 에이전트 기본값: 4GB RAM, 2 vCPU.
 # 병렬 에이전트/브라우저 탭을 자주 쓰면 large_3_0(8GB)을 권장한다.

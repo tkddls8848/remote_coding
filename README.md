@@ -9,7 +9,7 @@
 
 ## remote-lightsail
 
-서울 리전의 4GB Lightsail에서 Orca를 systemd 서비스로 계속 실행한다. 코딩 에이전트와 저장소는
+도쿄 리전(ap-northeast-1)의 4GB Lightsail에서 Orca를 systemd 서비스로 계속 실행한다. 코딩 에이전트와 저장소는
 서버에 남아 있고, 관리 PC는 같은 Tailscale tailnet의 웹 브라우저로 연결한다.
 
 ```text

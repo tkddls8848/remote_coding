@@ -1,7 +1,7 @@
 variable "region" {
   description = "Lightsail 리전"
   type        = string
-  default     = "ap-northeast-2"
+  default     = "ap-northeast-1"
 }
 
 variable "instance_name" {
