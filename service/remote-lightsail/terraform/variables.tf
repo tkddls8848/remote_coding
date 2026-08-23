@@ -1,13 +1,13 @@
 variable "region" {
   description = "Lightsail 리전"
   type        = string
-  default     = "ap-northeast-2"
+  default     = "ap-northeast-1"
 }
 
 variable "instance_name" {
   description = "Lightsail 인스턴스 이름"
   type        = string
-  default     = "orca-host"
+  default     = "orca-host-tokyo"
 }
 
 variable "bundle_id" {
@@ -25,7 +25,7 @@ variable "blueprint_id" {
 variable "key_pair_name" {
   description = "Lightsail에 등록할 키페어 이름. 같은 이름이 이미 있으면 다른 이름을 사용한다."
   type        = string
-  default     = "orca-host-key"
+  default     = "orca-host-tokyo-key"
 }
 
 variable "ssh_public_key_path" {
