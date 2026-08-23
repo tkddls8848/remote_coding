@@ -15,7 +15,7 @@ Thumbs.db
 .DS_Store
 
 # ─────────────────────────────────────────────────────────────
-# service/remote-lightsail/ — CLI 개발 + stock_chatbot 호스트
+# service/remote-lightsail/ — Orca 상시 개발 서버
 # ─────────────────────────────────────────────────────────────
 
 # 스크립트 실행값 (도메인/IP 등 실제 값)

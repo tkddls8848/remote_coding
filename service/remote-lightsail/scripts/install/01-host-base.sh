@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 호스트 설정 1/3 — CLI 개발 + stock_chatbot 공통 툴체인, 스왑, Node, 보안 패치.
+# 호스트 설정 1/5 — Orca/코딩 에이전트 공통 툴체인, 스왑, Node, 보안 패치.
 #
 #   실행 위치: 서버 (ubuntu 계정)
 
@@ -12,15 +12,29 @@ sudo apt-get update -qq
 sudo apt-get upgrade -y -qq
 
 say "빌드 도구 설치"
-# Python venv는 stock_chatbot, tmux는 SSH CLI 세션 유지에 사용한다.
-sudo apt-get install -y -qq build-essential python3 python3-venv git curl ca-certificates unzip tmux
+# Xvfb와 AppImage 런타임 패키지는 Orca headless serve에 필요하다.
+sudo apt-get install -y -qq \
+    build-essential python3 python3-venv git gh curl ca-certificates unzip tmux \
+    file jq xvfb zlib1g-dev ufw \
+    libatk1.0-0t64 libatk-bridge2.0-0t64 libatspi2.0-0t64 \
+    libgtk-3-0t64 libasound2t64 libcups2t64 libnss3 libnspr4 \
+    libdrm2 libgbm1 libxss1 libxtst6 libxkbcommon0 \
+    libsecret-1-0 libnotify4 xdg-utils
 
-# --- 스왑 2GB ---------------------------------------------------------------
+if apt-cache show libfuse2t64 >/dev/null 2>&1; then
+    sudo apt-get install -y -qq libfuse2t64
+elif apt-cache show libfuse2 >/dev/null 2>&1; then
+    sudo apt-get install -y -qq libfuse2
+else
+    warn "FUSE 2 패키지가 없다. AppImage 실행이 실패하면 추출 실행 방식으로 전환할 것."
+fi
+
+# --- 스왑 4GB ---------------------------------------------------------------
 if swapon --show | grep -q '/swapfile'; then
     ok "스왑 이미 활성"
 else
-    say "스왑 2GB 생성"
-    sudo fallocate -l 2G /swapfile
+    say "스왑 4GB 생성"
+    sudo fallocate -l 4G /swapfile
     sudo chmod 600 /swapfile
     sudo mkswap /swapfile >/dev/null
     sudo swapon /swapfile

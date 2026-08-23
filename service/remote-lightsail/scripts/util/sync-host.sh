@@ -28,6 +28,10 @@ cat > "$tmp" <<TXT
 REPOS="${REPOS:-}"
 GITHUB_OWNER="${GITHUB_OWNER:-}"
 STOCK_CHATBOT_SERVICE="${STOCK_CHATBOT_SERVICE:-stock-chatbot}"
+ORCA_VERSION="${ORCA_VERSION:-v1.4.188}"
+ORCA_PORT="${ORCA_PORT:-6768}"
+ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-orca}"
+ORCA_PAIRING_ADDRESS="${ORCA_PAIRING_ADDRESS:-}"
 TXT
 
 ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'rm -rf ~/remote-lightsail-scripts && mkdir -p ~/remote-lightsail-scripts'
@@ -36,14 +40,24 @@ scp "${SSH_ARGS[@]}" -q "$tmp" "ubuntu@$STATIC_IP:~/remote-lightsail-scripts/hos
 ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'find ~/remote-lightsail-scripts -type f -name "*.sh" -exec chmod +x {} +'
 ok "복사 완료"
 
+# 단독 실행할 때만 다음 단계를 안내한다. provision-host.sh가 호출한 경우에는
+# 상위 스크립트가 같은 안내를 한 번만 출력한다.
+if [ "${SYNC_SHOW_NEXT_STEPS:-1}" = 1 ]; then
 cat <<TXT
 
 서버에 붙어서 순서대로 실행한다:
 
   ssh ubuntu@$STATIC_IP
   cd ~/remote-lightsail-scripts
-  ./install/01-host-base.sh  # 툴체인 + 스왑 2GB + Node + tmux
+  ./install/01-host-base.sh  # 툴체인 + 스왑 + Node
   ./install/02-agent-cli.sh  # Claude/Codex CLI 설치 (로그인은 사람이 직접)
-  ./install/03-repos.sh      # 개발 레포 클론
-  ./util/verify-host.sh      # CLI + stock_chatbot 점검
+  ./install/03-private-network.sh
+  sudo tailscale up          # 출력 URL에서 로그인 (최초 1회)
+  ./install/04-orca-server.sh
+  sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec codex login --device-auth'
+  sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
+  ./install/05-repos.sh
+  sudo ./util/show-orca-access.sh
+  ./util/verify-host.sh
 TXT
+fi

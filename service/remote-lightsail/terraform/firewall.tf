@@ -18,6 +18,9 @@ locals {
   ports = var.phase == "build" ? local.ports_build : local.ports_final
 }
 
+# Orca의 6768 포트는 의도적으로 여기에 없다. 클라이언트는 Tailscale의
+# tailscale0 인터페이스로만 접속하며 Lightsail 공인 방화벽을 통과하지 않는다.
+
 resource "aws_lightsail_instance_public_ports" "orca" {
   instance_name = aws_lightsail_instance.orca.name
 

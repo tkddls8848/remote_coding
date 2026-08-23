@@ -1,5 +1,8 @@
 # stock_chatbot을 CLI 개발 호스트로 통합하는 계획
 
+> **보관 문서:** 이 문서는 과거 2GB SSH+tmux 설계를 기록한다. 현재 Orca 브라우저 서버 구축에는
+> [`lightsail-plan.md`](lightsail-plan.md)를 사용한다.
+
 > 기준일: 2026-08-22
 > 목표: 1GB `stock_chatbot` 인스턴스를 폐기하고, 2GB Lightsail 한 대에서 운영 봇과 단일 CLI 개발
 > 에이전트를 함께 실행한다. Orca와 Caddy는 사용하지 않는다.

@@ -13,9 +13,9 @@ output "ssh_command" {
   value       = "ssh ubuntu@${aws_lightsail_static_ip.orca.ip_address}"
 }
 
-output "tmux_command" {
-  description = "SSH로 접속해 개발 tmux 세션을 열거나 재접속하는 명령"
-  value       = "ssh -t ubuntu@${aws_lightsail_static_ip.orca.ip_address} tmux new -As dev"
+output "browser_access_command" {
+  description = "SSH로 접속해 최신 Orca 브라우저 URL을 표시하는 명령"
+  value       = "ssh ubuntu@${aws_lightsail_static_ip.orca.ip_address} 'sudo /home/ubuntu/remote-lightsail-scripts/util/show-orca-access.sh'"
 }
 
 output "phase" {

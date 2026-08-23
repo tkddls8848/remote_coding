@@ -1,136 +1,145 @@
-# Lightsail CLI 개발 + stock_chatbot 호스트 구축 및 운영
+# Lightsail 상시 Orca 서버 구축·운영 계획
 
-> 기준일: 2026-08-22
-> 상태: Terraform과 호스트 설정 스크립트는 준비되어 있다. 실제 AWS 자원 상태는
-> `terraform -chdir=service/remote-lightsail/terraform plan`과 Lightsail 콘솔에서 확인한다.
+> 기준일: 2026-08-23
+> 목표: Lightsail에서 Orca와 코딩 에이전트를 계속 실행하고 웹 브라우저로 제어한다.
 
-## 1. 목표와 구성
-
-한 대의 서울 리전 Lightsail `small_3_0`(2GB RAM, 2 vCPU, Ubuntu 24.04)에서 다음을 실행한다.
-
-- `stock-chatbot.service`: 24시간 운영 봇
-- Claude Code 또는 Codex CLI: 한 번에 하나의 개발 에이전트
-- `tmux`: SSH 연결이 끊겨도 개발 세션을 유지
+## 1. 확정 아키텍처
 
 ```text
-개발 PC ── SSH :22 (현재 공인 IP /32만) ──> Lightsail
-                                                ├─ tmux + Claude Code 또는 Codex
-                                                └─ stock-chatbot.service
+관리 PC (Tailscale + 웹 브라우저)
+              │ HTTP/WS over tailnet
+              ▼
+Lightsail Ubuntu 24.04 / medium_3_0(4GB)
+├─ tailscaled
+├─ orca-serve.service :6768
+│  ├─ Web Client
+│  ├─ terminals / worktrees / browser tabs
+│  └─ Codex 또는 Claude Code
+└─ /home/orca
+   ├─ .config/{orca,Orca}       # 런타임 상태·페어링
+   ├─ .codex                    # Codex 자격증명/설정
+   └─ workspace                 # 개발 저장소
 ```
 
-Orca, Caddy, 4224, HTTP/HTTPS 공개 포트는 사용하지 않는다. CLI 전용 구성에서 SSH는 유일한
-개발·관리 경로이므로 `phase=final`에도 TCP 22를 현재 공인 IP에만 남긴다.
+관리면과 작업면을 분리한다.
 
-## 2. 소유권
+- SSH 22: `ubuntu` 관리자 계정, 현재 공인 IP `/32`만 허용
+- Orca 6768: Lightsail 공인 방화벽에는 미개방, Tailscale 사설망에서만 접근
+- 에이전트/저장소: 권한이 제한된 `orca` system user가 소유
 
-| 범위 | 위치 | 내용 |
-|---|---|---|
-| AWS 자원 | [`../terraform/`](../terraform/) | 인스턴스, 키페어, 고정 IP, TCP 22 방화벽 |
-| 호스트 공통 설정 | [`../scripts/`](../scripts/) | swap, Node.js, tmux, CLI, 개발용 레포 |
-| stock_chatbot 운영 설치 | `stock_chatbot` 저장소 | `/srv/stock-chatbot`, `.env`, systemd 유닛, 백업 cron |
+이 선택은 별도 도메인·Caddy·공개 TLS 인증서가 필요 없고 Orca의 pairing/E2EE 접근 권한을
+사설망 안에 한 번 더 가둔다. 공개 리버스 프록시는 기본 설계에 포함하지 않는다.
 
-운영 체크아웃은 `/srv/stock-chatbot`, 개발 체크아웃은 `~/workspace/stock_chatbot`으로 분리한다.
-개발용 체크아웃에는 운영 토큰을 두지 않는다.
+## 2. 구축
 
-## 3. 구축
-
-### 3.1 로컬 준비
-
-Windows PowerShell에서 AWS CLI, Terraform, OpenSSH, Git Bash를 준비하고 AWS 인증을 확인한다.
-
-```powershell
-aws sts get-caller-identity
-terraform -version
-ssh -V
-& "C:\Program Files\Git\bin\bash.exe" --version
-```
-
-공개키가 없으면 만든다.
-
-```powershell
-if (-not (Test-Path "$env:USERPROFILE\.ssh\id_ed25519.pub")) {
-    ssh-keygen -t ed25519 -C "orca-host"
-}
-```
-
-### 3.2 Terraform
+### 로컬
 
 ```powershell
 Copy-Item service\remote-lightsail\terraform\terraform.tfvars.example service\remote-lightsail\terraform\terraform.tfvars
-terraform -chdir=service/remote-lightsail/terraform init
-terraform -chdir=service/remote-lightsail/terraform plan
-terraform -chdir=service/remote-lightsail/terraform apply
-```
-
-`small_3_0`이 2GB 기본값이다. `my_ip`를 비우면 현재 공인 IP를 감지해 TCP 22를 `/32`로 연다.
-외부 네트워크가 바뀌면 같은 apply를 다시 실행한다.
-
-### 3.3 호스트 설정
-
-```powershell
 Copy-Item service\remote-lightsail\scripts\config.example.env service\remote-lightsail\scripts\config.env
-& "C:\Program Files\Git\bin\bash.exe" ./service/remote-lightsail/scripts/util/sync-host.sh
+& "C:\Program Files\Git\bin\bash.exe" ./service/remote-lightsail/scripts/util/provision-host.sh
 ```
 
-서버에서 실행한다.
+Terraform은 인스턴스·고정 IP·키페어·SSH 방화벽을 만들고 스크립트를 서버로 복사한다.
+
+### 서버
 
 ```bash
 cd ~/remote-lightsail-scripts
 ./install/01-host-base.sh
 ./install/02-agent-cli.sh
-claude
-codex
-gh auth login
-./install/03-repos.sh
+./install/03-private-network.sh
+sudo tailscale up
 ```
 
-그다음 `stock_chatbot` 저장소의 호스트 설치 절차로 `stock-chatbot.service`를 만들고, 운영 체크아웃과
-개발 체크아웃이 겹치지 않는지 확인한다. 이 서비스의 `.env`와 백업 설정은 이 저장소에 복사하지 않는다.
-
-### 3.4 검증
+Tailscale 로그인 후 관리 PC도 같은 tailnet에 연결한다.
 
 ```bash
-cd ~/remote-lightsail-scripts
+./install/04-orca-server.sh
+sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec codex login --device-auth'
+sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
+./install/05-repos.sh
 ./util/verify-host.sh
+sudo ./util/show-orca-access.sh
 ```
 
-다음도 수동으로 확인한다.
+`codex login --device-auth`는 원격 서버에서 device authorization을 시작하고 관리 PC의
+브라우저에서 완료한다. AppImage의 `account add`는 GUI/X11 초기화나 실행 중인 Orca의
+single-instance lock에 걸릴 수 있으므로 headless 설치 절차에는 쓰지 않는다. 자동화용 API key를
+쓸 경우 표준 API 요금이 적용되며, 키는 저장소나 systemd unit에 직접 넣지 않는다.
 
-```powershell
-terraform -chdir=service/remote-lightsail/terraform output -raw tmux_command
-```
+## 3. 브라우저 접속
 
-출력 명령으로 접속해 `~/workspace`에서 Claude Code 또는 Codex를 실행한다. SSH를 끊고 같은 명령으로
-다시 접속해 tmux 세션이 이어지는지, `sudo reboot` 뒤 `stock-chatbot.service`가 자동 복구되는지 확인한다.
+`show-orca-access.sh`의 URL을 같은 tailnet의 브라우저에서 연다. URL fragment에 pairing
+capability가 들어 있어 일반 HTTP 로그의 query에는 남지 않지만, URL 자체는 비밀번호와 같다.
 
-## 4. 2GB 운영 기준
+- 채팅·이슈·화면 공유에 붙이지 않는다.
+- 공용 브라우저나 시크릿 모드를 일상 클라이언트로 쓰지 않는다.
+- 브라우저 저장소를 지우면 새 pairing이 필요할 수 있다.
+- 새 링크이 필요하면 `sudo systemctl restart orca-serve` 후 접근 URL을 다시 조회한다. 기존에
+  발급된 클라이언트 grant는 서버 프로필이 유지되는 한 재부팅·업그레이드 후 재연결된다.
 
-- 봇은 실측 후 `MemoryMax=512M~768M`으로 제한하고 `OOMScoreAdjust=-500`을 사용한다.
-- 에이전트는 한 번에 하나만 실행한다. 대형 빌드·테스트와 봇의 바쁜 시간대를 겹치지 않는다.
-- 2GB swap은 활성화하지만 지속적인 swap 사용, OOM, 높은 load는 4GB 전환 신호다.
-- 4GB 전환은 현재 인스턴스의 스냅샷으로 더 큰 새 인스턴스를 만든 뒤 고정 IP를 옮기는 방식으로 한다.
-  Terraform의 `bundle_id`만 바꿔 기존 인스턴스를 교체하면 데이터 이전 절차를 건너뛰게 되므로 사용하지 않는다.
+Orca Web Client/Remote Server는 Beta다. 브라우저에서 로컬 OS 파일 선택·다운로드처럼 Electron
+데스크톱 기능에 의존하는 일부 동작은 제한될 수 있으므로, 복구 경로로 SSH를 유지한다.
 
-## 5. 운영과 복구
+## 4. 운영 기준
 
-| 목적 | 명령 |
+| 점검 | 명령/기준 |
 |---|---|
-| 개발 세션 접속 | `terraform output -raw tmux_command` |
-| 봇 상태 | `systemctl status stock-chatbot --no-pager` |
-| 봇 로그 | `journalctl -u stock-chatbot -f` |
-| 방화벽 drift | `terraform -chdir=service/remote-lightsail/terraform plan` |
-| 현재 허용 포트 | `aws lightsail get-instance-port-states --region ap-northeast-2 --instance-name orca-host` |
-| 수동 스냅샷 | `aws lightsail create-instance-snapshot --region ap-northeast-2 --instance-name orca-host --instance-snapshot-name <NAME>` |
+| 서비스 | `systemctl is-active orca-serve tailscaled` |
+| 로그 | `journalctl -u orca-serve -f` |
+| 메모리 | `free -h`; swap이 지속 증가하면 8GB로 확장 |
+| 디스크 | `df -h /home /opt/orca`; 80% 전에 정리/확장 |
+| 공인 포트 | Lightsail에서 TCP 22 `/32`만 존재 |
+| Orca 접속 | `show-orca-access.sh` URL을 tailnet 브라우저에서 확인 |
 
-삭제 전에는 운영 데이터, 자격증명, 미푸시 커밋을 백업한다. 완전 삭제는 다음 명령으로만 수행한다.
+4GB는 동시 에이전트 하나 기준이다. 병렬 에이전트, 대형 빌드, 장시간 유지되는 내장 브라우저 탭은
+메모리를 빠르게 늘리므로 8GB로 올리거나 사용 후 탭/터미널을 닫는다.
+
+## 5. 업그레이드와 백업
+
+헤드리스 `orca serve`는 자동 업데이트하지 않는다. 다음 순서로 명시적으로 올린다.
+
+1. Lightsail 스냅샷 생성
+2. `/home/orca/.config/orca`, `/home/orca/.config/Orca`, `/home/orca/workspace` 백업
+3. `scripts/config.env`의 `ORCA_VERSION` 변경 후 서버에 재동기화
+4. `04-orca-server.sh` 재실행
+5. 로그의 `orca_server_ready`와 브라우저 재연결 확인
+
+다운그레이드는 바이너리만 되돌리면 안 된다. 새 버전이 상태 스키마를 바꿀 수 있으므로 같은 시점의
+Orca 프로필 백업도 함께 복구한다.
+
+## 6. 장애 복구
+
+```bash
+sudo systemctl status orca-serve --no-pager
+sudo journalctl -u orca-serve -n 200 --no-pager
+tailscale status
+tailscale ip -4
+free -h
+df -h
+```
+
+- `orca_server_ready` 없음: AppImage/Xvfb/FUSE 의존성과 서비스 로그 확인
+- 브라우저 연결 실패: 관리 PC tailnet, 광고된 주소, 6768 리스너 확인
+- 에이전트 실행 실패: `as_orca`와 같은 HOME 전환 방식으로 `codex login status`,
+  `gh auth status`, PATH 확인
+- exit 3 반복: 같은 `orca` 프로필을 쓰는 다른 Orca 프로세스를 종료한 뒤
+  `systemctl reset-failed orca-serve` 실행
+- OOM/swap 과다: 스냅샷 후 `large_3_0` 새 인스턴스로 검증 전환
+
+## 7. 폐기
+
+자격증명 revoke, 필요한 저장소 push/백업, Tailscale 장치 제거, Lightsail 스냅샷 확인 후에만
+Terraform destroy를 실행한다.
 
 ```powershell
 terraform -chdir=service/remote-lightsail/terraform destroy
 ```
 
-## 6. 보안 원칙
+## 참고 근거
 
-- TCP 22는 현재 공인 IP `/32`만 허용한다.
-- 키·Terraform state·`.env`·토큰은 Git에 커밋하지 않는다.
-- `stockbot` 전용 계정과 `0600` `.env`를 사용한다.
-- 개발용 `~/workspace/stock_chatbot`에는 운영 토큰을 두지 않는다.
+- [Orca Headless Linux Server](https://github.com/stablyai/orca/blob/main/docs/reference/headless-linux-server.md)
+- [Orca Remote Servers](https://www.onorca.dev/docs/remote-servers)
+- [OpenAI Codex authentication](https://learn.chatgpt.com/docs/auth)
+- [Amazon Lightsail instance bundles](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-bundles.html)

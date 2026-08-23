@@ -11,9 +11,9 @@ variable "instance_name" {
 }
 
 variable "bundle_id" {
-  description = "요금제. CLI + stock_chatbot 기본값은 2GB small_3_0"
+  description = "요금제. Orca + 단일 코딩 에이전트 최소 권장값은 4GB medium_3_0"
   type        = string
-  default     = "small_3_0"
+  default     = "medium_3_0"
 }
 
 variable "blueprint_id" {
@@ -43,8 +43,10 @@ variable "static_ip_name" {
 variable "phase" {
   description = <<-EOT
     방화벽 최종 상태.
-      build = 22(내 IP만) — 호스트 구축 및 SSH CLI 접속
-      final = 22(내 IP만) — 평상시; CLI 전용 구성은 SSH를 계속 사용
+      build = 22(내 IP만) — 호스트 구축
+      final = 22(내 IP만) — 평상시 비상 관리
+
+    Orca 6768은 인터넷에 열지 않는다. 브라우저는 Tailscale 사설망으로 접속한다.
   EOT
   type        = string
   default     = "final"
@@ -56,7 +58,7 @@ variable "phase" {
 }
 
 variable "my_ip" {
-  description = "구축 단계(phase=build)에서 SSH 를 허용할 내 공인 IP. 비우면 checkip.amazonaws.com 으로 자동 감지."
+  description = "SSH 를 허용할 내 공인 IP. 비우면 checkip.amazonaws.com 으로 자동 감지."
   type        = string
   default     = ""
 }

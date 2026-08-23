@@ -71,7 +71,7 @@ fi
 if [ ! -f "$SCRIPT_DIR/config.env" ]; then
     cp "$SCRIPT_DIR/config.example.env" "$SCRIPT_DIR/config.env"
     warn "config.env 가 없어 예시를 복사했다: $SCRIPT_DIR/config.env"
-    warn "클론할 레포 목록(REPOS)은 install/03-repos.sh 실행 전에 맞춰 둘 것."
+    warn "클론할 레포 목록(REPOS)은 install/05-repos.sh 실행 전에 맞춰 둘 것."
     # 이 실행에서 바로 반영한다.
     # shellcheck disable=SC1091
     . "$SCRIPT_DIR/config.env"
@@ -151,7 +151,7 @@ ok "ubuntu@$STATIC_IP 접속 가능"
 
 # --- 3. 스크립트 복사 ------------------------------------------------------
 say "호스트 스크립트 복사"
-bash "$UTIL_DIR/sync-host.sh"
+SYNC_SHOW_NEXT_STEPS=0 bash "$UTIL_DIR/sync-host.sh"
 
 cat <<TXT
 
@@ -161,7 +161,12 @@ cat <<TXT
   cd ~/remote-lightsail-scripts
   ./install/01-host-base.sh
   ./install/02-agent-cli.sh
-  claude ; codex ; gh auth login   # 로그인
-  ./install/03-repos.sh
+  ./install/03-private-network.sh
+  sudo tailscale up                # 최초 1회 브라우저 로그인
+  ./install/04-orca-server.sh
+  sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec codex login --device-auth'
+  sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
+  ./install/05-repos.sh
+  sudo ./util/show-orca-access.sh
   ./util/verify-host.sh
 TXT

@@ -18,6 +18,10 @@ for f in "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/host.env"; do
 done
 
 STOCK_CHATBOT_SERVICE="${STOCK_CHATBOT_SERVICE:-stock-chatbot}"
+ORCA_VERSION="${ORCA_VERSION:-v1.4.188}"
+ORCA_PORT="${ORCA_PORT:-6768}"
+ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-orca}"
+ORCA_PAIRING_ADDRESS="${ORCA_PAIRING_ADDRESS:-}"
 
 say()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 ok()   { printf '\033[1;32m  ok\033[0m %s\n' "$*"; }
@@ -25,6 +29,12 @@ warn() { printf '\033[1;33m  !!\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31m  xx\033[0m %s\n' "$*" >&2; exit 1; }
 
 need() { command -v "$1" >/dev/null 2>&1 || die "'$1' 가 필요하다. 먼저 설치할 것."; }
+
+# sudo 대상이 /home/ubuntu 아래의 접근 불가능한 현재 디렉터리를 물려받으면 gh/git/Orca가
+# 시작 단계에서 실패할 수 있다. 서비스 계정 명령은 항상 그 계정의 HOME에서 실행한다.
+as_orca() {
+    sudo -u "$ORCA_SERVICE_USER" -H /bin/bash -c 'cd "$HOME" && exec "$@"' bash "$@"
+}
 
 # terraform/ 의 output 값을 읽는다. 아직 apply 되지 않았으면 빈 문자열.
 # 주의: output 이 없을 때 terraform 은 exit 0 으로 "Warning: No outputs found" 를
