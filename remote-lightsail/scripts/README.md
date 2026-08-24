@@ -34,7 +34,7 @@ sudo ./util/show-orca-access.sh
 로그인은 사람의 브라우저 승인이 필요하므로 서버에서 마무리한다.
 
 ```powershell
-& "C:\Program Files\Git\bin\bash.exe" ./service/remote-lightsail/scripts/util/provision-host.sh
+& "C:\Program Files\Git\bin\bash.exe" ./remote-lightsail/scripts/util/provision-host.sh
 ```
 
 `util/show-orca-access.sh`는 systemd 저널의 최신 `orca_server_ready` JSON에서

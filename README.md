@@ -4,7 +4,7 @@
 
 | 영역 | 위치 | 내용 |
 |---|---|---|
-| 상시 Orca 개발 서비스 | [`service/remote-lightsail/`](service/remote-lightsail/) | Lightsail + Tailscale + Orca Web Client + Codex/Claude |
+| 상시 Orca 개발 서비스 | [`remote-lightsail/`](remote-lightsail/) | Lightsail + Tailscale + Orca Web Client + Codex/Claude |
 | 인프라 학습 랩 | [`infra-labs/`](infra-labs/) | Kubernetes·Ceph·BeeGFS·Hadoop 등 로컬/AWS 실습 |
 
 ## remote-lightsail
@@ -20,9 +20,9 @@ SSH      ── 공인 IP /32 ─> ubuntu (설치·복구 전용)
 Orca 6768은 공개 인터넷에 열지 않는다. 기본 4GB는 동시 에이전트 하나 기준이며 병렬 작업은 8GB
 이상을 권장한다.
 
-빠른 시작과 운영 절차는 [`service/remote-lightsail/README.md`](service/remote-lightsail/README.md),
+빠른 시작과 운영 절차는 [`remote-lightsail/README.md`](remote-lightsail/README.md),
 상세 설계·복구 절차는
-[`service/remote-lightsail/docs/lightsail-plan.md`](service/remote-lightsail/docs/lightsail-plan.md)를
+[`remote-lightsail/docs/lightsail-plan.md`](remote-lightsail/docs/lightsail-plan.md)를
 따른다.
 
 ## infra-labs

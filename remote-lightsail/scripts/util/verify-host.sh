@@ -71,7 +71,7 @@ cat <<TXT
   sudo $SCRIPT_DIR/util/diagnose-web-client.sh
 
 로컬 인프라 검사:
-  terraform -chdir=service/remote-lightsail/terraform plan
+  terraform -chdir=remote-lightsail/terraform plan
   aws lightsail get-instance-port-states --region ap-northeast-1 --instance-name orca-host-tokyo
 TXT
 exit "$fail"

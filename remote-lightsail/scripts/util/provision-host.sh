@@ -5,7 +5,7 @@
 #   범위: terraform apply (인스턴스/고정 IP/방화벽) -> SSH 대기 -> util/sync-host.sh
 #   범위 밖: install/*.sh 실행과 CLI 로그인. 서버에 붙어 사람이 직접 한다.
 #
-#   ./service/remote-lightsail/scripts/util/provision-host.sh [옵션]
+#   ./remote-lightsail/scripts/util/provision-host.sh [옵션]
 #
 #     -y, --auto-approve   terraform apply 를 확인 없이 실행한다
 #         --phase X        build | final (기본: terraform.tfvars 값)

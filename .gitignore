@@ -15,21 +15,21 @@ Thumbs.db
 .DS_Store
 
 # ─────────────────────────────────────────────────────────────
-# service/remote-lightsail/ — Orca 상시 개발 서버
+# remote-lightsail/ — Orca 상시 개발 서버
 # ─────────────────────────────────────────────────────────────
 
 # 스크립트 실행값 (도메인/IP 등 실제 값)
-service/remote-lightsail/scripts/config.env
+remote-lightsail/scripts/config.env
 
 # Terraform — state 에 리소스 상세(IP 등)가 그대로 담긴다.
 # .terraform.lock.hcl 은 provider 버전 고정용이라 예외적으로 커밋한다.
-service/remote-lightsail/terraform/.terraform/
-service/remote-lightsail/terraform/*.tfstate
-service/remote-lightsail/terraform/*.tfstate.*
-service/remote-lightsail/terraform/*.tfvars
-!service/remote-lightsail/terraform/terraform.tfvars.example
-service/remote-lightsail/terraform/crash.log
-service/remote-lightsail/terraform/crash.*.log
+remote-lightsail/terraform/.terraform/
+remote-lightsail/terraform/*.tfstate
+remote-lightsail/terraform/*.tfstate.*
+remote-lightsail/terraform/*.tfvars
+!remote-lightsail/terraform/terraform.tfvars.example
+remote-lightsail/terraform/crash.log
+remote-lightsail/terraform/crash.*.log
 
 # ─────────────────────────────────────────────────────────────
 # infra-labs/systems/ — forfun 에서 이관한 랩 공통 규칙.

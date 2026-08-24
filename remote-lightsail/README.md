@@ -25,7 +25,7 @@ Windows PowerShell에서 설정 예시를 복사한 뒤 값을 확인한다.
 Copy-Item service\remote-lightsail\terraform\terraform.tfvars.example service\remote-lightsail\terraform\terraform.tfvars
 Copy-Item service\remote-lightsail\scripts\config.example.env service\remote-lightsail\scripts\config.env
 
-& "C:\Program Files\Git\bin\bash.exe" ./service/remote-lightsail/scripts/util/provision-host.sh
+& "C:\Program Files\Git\bin\bash.exe" ./remote-lightsail/scripts/util/provision-host.sh
 ```
 
 그 다음 출력된 SSH 주소로 접속해 실행한다.

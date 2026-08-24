@@ -5,9 +5,9 @@
 
 ```powershell
 Copy-Item service\remote-lightsail\terraform\terraform.tfvars.example service\remote-lightsail\terraform\terraform.tfvars
-terraform -chdir=service/remote-lightsail/terraform init
-terraform -chdir=service/remote-lightsail/terraform plan
-terraform -chdir=service/remote-lightsail/terraform apply
+terraform -chdir=remote-lightsail/terraform init
+terraform -chdir=remote-lightsail/terraform plan
+terraform -chdir=remote-lightsail/terraform apply
 ```
 
 공인 방화벽의 완전한 의도 상태는 TCP 22 하나이며 현재 관리자 공인 IP `/32`에만 허용된다.
@@ -26,8 +26,8 @@ provider 리전이 바뀌면 기존 리소스를 조회하지 못해 state 에�
 새 리전에 새로 만들려 한다. 도쿄를 별개 배포로 두려면 state 를 분리한다.
 
 ```powershell
-terraform -chdir=service/remote-lightsail/terraform workspace new tokyo
-terraform -chdir=service/remote-lightsail/terraform apply
+terraform -chdir=remote-lightsail/terraform workspace new tokyo
+terraform -chdir=remote-lightsail/terraform apply
 ```
 
 기존 배포는 `default` workspace 에 그대로 남는다. 리소스 이름 기본값은 `orca-host-tokyo`,
@@ -50,11 +50,11 @@ terraform -chdir=service/remote-lightsail/terraform apply
 ## 출력과 폐기
 
 ```powershell
-terraform -chdir=service/remote-lightsail/terraform output
-terraform -chdir=service/remote-lightsail/terraform plan
+terraform -chdir=remote-lightsail/terraform output
+terraform -chdir=remote-lightsail/terraform plan
 
 # 정말 폐기할 때만
-terraform -chdir=service/remote-lightsail/terraform destroy
+terraform -chdir=remote-lightsail/terraform destroy
 ```
 
 Terraform state와 `terraform.tfvars`에는 인프라 정보가 있으므로 커밋하지 않는다. 브라우저
