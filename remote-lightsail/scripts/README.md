@@ -15,6 +15,7 @@ sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec codex login --device-auth'
 sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
 
 ./install/05-repos.sh
+./install/06-vscode-remote.sh
 ./util/verify-host.sh
 sudo ./util/show-orca-access.sh
 ```
@@ -24,6 +25,7 @@ sudo ./util/show-orca-access.sh
 - `03-private-network.sh`: Tailscale 공식 APT 저장소와 데몬
 - `04-orca-server.sh`: 고정 버전 AppImage, `orca` 전용 계정, `orca-serve.service`, Tailscale Serve HTTPS
 - `05-repos.sh`: `/home/orca/workspace`에 Orca 계정으로 저장소 클론
+- `06-vscode-remote.sh`: `orca` 계정 SSH 로그인(키 전용), sshd 드롭인, inotify 한도 — VS Code Remote-SSH
 
 `config.env`는 로컬 전용이며 `sync-host.sh`가 필요한 비밀 아닌 값만 서버의 `host.env`로
 복사한다. Tailscale·Codex·GitHub 토큰은 이 파일에 넣지 않는다.

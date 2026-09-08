@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 호스트 설정 5/5 — Orca 서비스 계정의 개발 저장소 클론.
+# 호스트 설정 5/6 — Orca 서비스 계정의 개발 저장소 클론.
 
 . "$(dirname "${BASH_SOURCE[0]}")/../util/lib.sh"
 
@@ -39,3 +39,4 @@ for repo in $REPOS; do
 done
 
 ok "Orca 개발 저장소 위치: $workspace"
+echo "다음: ./install/06-vscode-remote.sh"

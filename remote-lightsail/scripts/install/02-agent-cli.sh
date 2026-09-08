@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 호스트 설정 2/5 — Claude Code와 Codex CLI 설치.
+# 호스트 설정 2/6 — Claude Code와 Codex CLI 설치.
 #
 #   실행 위치: 서버 (ubuntu 계정)
 

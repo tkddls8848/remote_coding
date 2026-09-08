@@ -167,6 +167,7 @@ cat <<TXT
   sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec codex login --device-auth'
   sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
   ./install/05-repos.sh
+  ./install/06-vscode-remote.sh
   sudo ./util/show-orca-access.sh
   ./util/verify-host.sh
 TXT

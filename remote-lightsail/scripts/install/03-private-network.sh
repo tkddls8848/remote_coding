@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 호스트 설정 3/5 — Tailscale 사설망.
+# 호스트 설정 3/6 — Tailscale 사설망.
 #
 # Orca 포트는 Lightsail 공인 방화벽에 열지 않는다. 브라우저와 서버가 같은
 # tailnet에 있을 때만 tailscale0 경로로 접근한다.

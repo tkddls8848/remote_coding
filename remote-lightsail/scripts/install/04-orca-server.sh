@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 호스트 설정 4/5 — Orca AppImage, 전용 계정, systemd 상시 서비스.
+# 호스트 설정 4/6 — Orca AppImage, 전용 계정, systemd 상시 서비스.
 
 . "$(dirname "${BASH_SOURCE[0]}")/../util/lib.sh"
 

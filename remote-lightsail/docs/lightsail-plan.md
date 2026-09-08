@@ -63,7 +63,7 @@ remote-lightsail/
 ├─ terraform/             # 인스턴스, 고정 IP, 키페어, 공인 SSH 방화벽
 ├─ scripts/
 │  ├─ config.example.env  # Orca 버전과 클론 대상 예시
-│  ├─ install/            # 서버 설치 01~05
+│  ├─ install/            # 서버 설치 01~06
 │  └─ util/               # 프로비저닝, 동기화, URL 조회, 진단, 검증
 └─ docs/                  # 운영 기준과 별도 통합 계획
 ```
@@ -120,6 +120,7 @@ sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec codex login --device-auth'
 sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
 
 ./install/05-repos.sh
+./install/06-vscode-remote.sh
 ./util/verify-host.sh
 sudo ./util/show-orca-access.sh
 ```
@@ -127,6 +128,24 @@ sudo ./util/show-orca-access.sh
 Codex device URL과 GitHub device URL도 관리 PC 브라우저에서 연다. AppImage의
 `account add --agent codex`는 headless 환경에서 X11 초기화 또는 Orca single-instance lock에
 걸릴 수 있으므로 현행 절차에서 사용하지 않는다.
+
+### 4.3 VS Code Remote-SSH
+
+`06-vscode-remote.sh`는 `orca`에 `/bin/bash`와 `ubuntu`의 `authorized_keys`를 주고,
+`/etc/ssh/sshd_config.d/60-orca-vscode.conf`로 그 계정을 키 인증 전용으로 묶는다.
+
+- VS Code를 `orca`로 붙이는 이유는 파일 소유권이다. `ubuntu`로 편집하면
+  `/home/orca/workspace` 안에 Orca가 쓰지 못하는 파일이 섞인다.
+- 드롭인은 반드시 `Match all`로 끝난다. `sshd_config`의 `Include`가 파일 맨 위에 있어
+  `Match` 블록으로 끝내면 메인 설정의 나머지가 전부 그 블록 안으로 들어간다.
+- 스크립트는 드롭인을 쓴 뒤 `sshd -t`로 검증하고, 실패하면 드롭인을 지우고 중단한다.
+  기존 SSH 세션은 유지되므로 잠기지 않는다.
+- `orca`는 sudo 그룹에 넣지 않는다. 스크립트가 확인하고 들어 있으면 경고한다.
+- `fs.inotify.max_user_watches`를 524288로 올린다. 기본값에서는 저장소 몇 개만 열어도
+  VS Code 파일 감시가 중단된다.
+
+접속 주소는 Tailscale MagicDNS 이름을 쓴다. 공인 IP로 붙으면 관리자 IP가 바뀔 때마다
+`terraform apply`로 `/32` 규칙을 다시 반영해야 한다.
 
 ## 5. 브라우저 접속
 

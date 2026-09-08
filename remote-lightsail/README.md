@@ -10,6 +10,8 @@ AWS Lightsail에 Orca를 24시간 실행하고, 관리 PC의 **웹 브라우저*
                            ├─ Codex / Claude Code
                            └─ /home/orca/workspace/*
 
+관리 PC VS Code ─ Tailscale SSH ──> orca 계정 (같은 workspace 편집)
+
 관리 PC SSH ── 공인 IP /32 ──> 설치·복구용 ubuntu 계정
 ```
 
@@ -45,6 +47,7 @@ sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec codex login --device-auth'
 sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
 
 ./install/05-repos.sh
+./install/06-vscode-remote.sh
 ./util/verify-host.sh
 sudo ./util/show-orca-access.sh
 ```
@@ -52,6 +55,31 @@ sudo ./util/show-orca-access.sh
 마지막 명령이 출력한 URL을 같은 tailnet에 연결된 관리 PC의 브라우저에서 연다. URL에는
 접근 capability가 포함되므로 비밀번호처럼 취급한다. 최초 페어링 뒤 브라우저는 발급된
 클라이언트 자격증명을 보관하며, 서버 재부팅 후에도 다시 연결된다.
+
+## VS Code Remote-SSH
+
+`06-vscode-remote.sh`는 `orca` 계정에 로그인 셸과 관리 PC 공개키를 부여해 VS Code가
+에이전트와 **같은 계정**으로 붙게 한다. `ubuntu`로 붙어 `/home/orca/workspace`를 편집하면
+새 파일 소유자가 갈라져 Orca가 쓰지 못하는 경로가 생기기 때문이다. `orca`는 sudo 그룹에
+넣지 않고 비밀번호 인증도 막는다.
+
+관리 PC의 `~/.ssh/config`:
+
+```sshconfig
+Host orca
+    HostName <호스트>.<tailnet>.ts.net
+    User orca
+    IdentityFile ~/.ssh/id_ed25519
+    ServerAliveInterval 30
+    ServerAliveCountMax 6
+```
+
+`Remote-SSH: Connect to Host...` → `orca` → `/home/orca/workspace`를 연다. 스크립트가
+출력하는 MagicDNS 이름을 쓰면 관리자 공인 IP가 바뀌어도 `terraform apply`로 `/32` 규칙을
+갱신할 필요가 없다.
+
+브라우저 Orca와 VS Code를 동시에 켜면 4GB에서는 여유가 거의 없다. 원격 언어 서버나 인덱서
+확장을 상시 켤 계획이면 `large_3_0`(8GB) 이상으로 올린다.
 
 ## 구성
 

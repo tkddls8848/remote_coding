@@ -33,6 +33,18 @@ check "Orca 서비스 계정" id "$ORCA_SERVICE_USER"
 check "Codex 인증" as_orca codex login status
 check "GitHub 인증" as_orca gh auth status
 
+say "VS Code Remote-SSH"
+check "$ORCA_SERVICE_USER 로그인 셸" bash -lc \
+    "getent passwd '$ORCA_SERVICE_USER' | cut -d: -f7 | grep -qx /bin/bash"
+check "$ORCA_SERVICE_USER authorized_keys" bash -lc \
+    "sudo test -s \"\$(getent passwd '$ORCA_SERVICE_USER' | cut -d: -f6)/.ssh/authorized_keys\""
+check "sshd 드롭인" test -f /etc/ssh/sshd_config.d/60-orca-vscode.conf
+check "sshd 설정 유효" sudo sshd -t
+check "$ORCA_SERVICE_USER sudo 그룹 아님" bash -lc \
+    "! id -nG '$ORCA_SERVICE_USER' | tr ' ' '\n' | grep -qx -e sudo -e admin"
+check "inotify 감시 한도" bash -lc \
+    '[ "$(sysctl -n fs.inotify.max_user_watches)" -ge 524288 ]'
+
 say "메모리 / 스왑"
 free -h
 swapon --show | grep -q '/swapfile' && ok "스왑 활성" || { warn "스왑 없음"; fail=1; }
