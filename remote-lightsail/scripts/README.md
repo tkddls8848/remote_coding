@@ -46,7 +46,8 @@ sudo ./util/show-orca-access.sh
 긴 URL이 터미널에서 잘리는 것을 피하려면 관리 PC PowerShell에서 URL만 클립보드로 복사한다.
 
 ```powershell
-ssh ubuntu@43.202.14.119 "sudo ~/remote-lightsail-scripts/util/show-orca-access.sh --url-only" | Set-Clipboard
+$serverIp = terraform -chdir=remote-lightsail/terraform output -raw static_ip
+ssh "ubuntu@$serverIp" "sudo ~/remote-lightsail-scripts/util/show-orca-access.sh --url-only" | Set-Clipboard
 ```
 
 Web Client가 빈 화면이면 서버에서 `sudo ./util/diagnose-web-client.sh`를 실행한다. 이 진단은

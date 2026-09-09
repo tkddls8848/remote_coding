@@ -54,8 +54,8 @@ cat <<TXT
   ./install/03-private-network.sh
   sudo tailscale up          # 출력 URL에서 로그인 (최초 1회)
   ./install/04-orca-server.sh
-  sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec codex login --device-auth'
-  sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
+  sudo -u orca -H /bin/bash -c 'cd "\$HOME" && exec codex login --device-auth'
+  sudo -u orca -H /bin/bash -c 'cd "\$HOME" && exec gh auth login'
   ./install/05-repos.sh
   ./install/06-vscode-remote.sh
   sudo ./util/show-orca-access.sh

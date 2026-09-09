@@ -8,7 +8,7 @@
 | 항목 | 현행 값 |
 |---|---|
 | 저장소 경로 | `remote-lightsail/` |
-| AWS 리전 / OS | `ap-northeast-2` / Ubuntu 24.04 |
+| AWS 리전 / OS | `ap-northeast-1` (도쿄) / Ubuntu 24.04 |
 | 기본 번들 | `medium_3_0` — 4GB RAM, 2 vCPU |
 | swap | `/swapfile` 4GB |
 | Orca | `v1.4.188`, `/opt/orca/orca-linux.AppImage` |

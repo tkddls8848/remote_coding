@@ -50,6 +50,15 @@ need ssh-keygen
 if command -v aws >/dev/null 2>&1; then
     aws sts get-caller-identity >/dev/null 2>&1 \
         || die "AWS 자격증명이 없다. 'aws configure' 를 먼저 실행할 것."
+
+    # `aws login`의 login_session은 구버전 AWS provider가 직접 읽지 못할 수 있다.
+    # AWS CLI가 해석한 단기 자격증명을 현재 프로세스에만 전달하고 파일에는 저장하지 않는다.
+    if [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
+        credential_env="$(aws configure export-credentials --format env 2>/dev/null)" \
+            || die "AWS CLI 자격증명을 Terraform용 환경 변수로 내보내지 못했다."
+        eval "$credential_env"
+        unset credential_env
+    fi
     ok "AWS 자격증명"
 else
     warn "aws CLI 가 없다. Terraform 이 기본 자격증명 체인으로 인증한다."
@@ -164,8 +173,8 @@ cat <<TXT
   ./install/03-private-network.sh
   sudo tailscale up                # 최초 1회 브라우저 로그인
   ./install/04-orca-server.sh
-  sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec codex login --device-auth'
-  sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
+  sudo -u orca -H /bin/bash -c 'cd "\$HOME" && exec codex login --device-auth'
+  sudo -u orca -H /bin/bash -c 'cd "\$HOME" && exec gh auth login'
   ./install/05-repos.sh
   ./install/06-vscode-remote.sh
   sudo ./util/show-orca-access.sh
