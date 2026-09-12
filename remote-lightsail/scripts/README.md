@@ -24,7 +24,11 @@ sudo ./util/show-orca-access.sh
 - `02-agent-cli.sh`: Codex CLI와 Claude Code 전역 설치
 - `03-private-network.sh`: Tailscale 공식 APT 저장소와 데몬
 - `04-orca-server.sh`: 고정 버전 AppImage, `orca` 전용 계정, `orca-serve.service`, Tailscale Serve HTTPS
-- `05-repos.sh`: `/home/orca/workspace`에 Orca 계정으로 저장소 클론
+- `05-repos.sh`: `/home/orca/workspace`에 Orca 계정으로 저장소 클론.
+  `REPOS=all`(기본)이면 `GITHUB_OWNER`의 저장소를 `gh`로 열거해 **프라이빗까지 전부**
+  가져오고 포크·보관됨은 건너뛴다. 토큰에 `repo` 스코프가 필요하며 없으면 중단한다.
+  일부만 원하면 `REPOS`에 이름을 공백으로 나열하고, 전체에서 몇 개만 빼려면
+  `REPOS_EXCLUDE`를 쓴다. 새 저장소를 만든 뒤 다시 돌리면 그것만 추가된다.
 - `06-vscode-remote.sh`: `orca` 계정 SSH 로그인(키 전용), sshd 드롭인, inotify 한도 — VS Code Remote-SSH
 
 `config.env`는 로컬 전용이며 `sync-host.sh`가 필요한 비밀 아닌 값만 서버의 `host.env`로

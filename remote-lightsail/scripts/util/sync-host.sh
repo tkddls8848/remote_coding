@@ -25,7 +25,9 @@ tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
 cat > "$tmp" <<TXT
 # sync-host.sh 가 생성. 서버 스크립트가 읽는다.
-REPOS="${REPOS:-}"
+REPOS="${REPOS:-all}"
+REPOS_EXCLUDE="${REPOS_EXCLUDE:-}"
+REPOS_LIMIT="${REPOS_LIMIT:-300}"
 GITHUB_OWNER="${GITHUB_OWNER:-}"
 ORCA_VERSION="${ORCA_VERSION:-v1.4.188}"
 ORCA_PORT="${ORCA_PORT:-6768}"
