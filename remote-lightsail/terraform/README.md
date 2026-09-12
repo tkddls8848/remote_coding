@@ -10,9 +10,13 @@ terraform -chdir=remote-lightsail/terraform plan
 terraform -chdir=remote-lightsail/terraform apply
 ```
 
-공인 방화벽의 완전한 의도 상태는 TCP 22 하나이며 현재 관리자 공인 IP `/32`에만 허용된다.
+공인 방화벽의 기본 의도 상태는 TCP 22 하나이며 현재 관리자 공인 IP `/32`에만 허용된다.
 `my_ip`를 비우면 apply 시 `checkip.amazonaws.com`에서 감지한다. Orca TCP 6768은 Tailscale
-사설 경로로만 사용하므로 Terraform 방화벽에 추가하지 않는다.
+사설 경로로만 사용하므로 Terraform 방화벽에 추가하지 않는다. 입주 앱의 내부 포트도
+루프백 전용이다. 공개 DNS와 리버스 프록시가 준비된 경우에만 `enable_public_web=true`로 80/443을 연다.
+
+영속 운영 데이터 보호를 위해 `enable_auto_snapshot=true`가 기본이며, 매일 19:00 UTC
+(04:00 KST/JST)에 Lightsail 자동 스냅샷을 시작한다.
 
 `phase=build|final`은 기존 state 호환성을 위해 유지하며 현재 두 값의 방화벽 결과는 같다.
 

@@ -8,16 +8,25 @@ AWS Lightsail에 Orca를 24시간 실행하고, 관리 PC의 **웹 브라우저*
   └─ Tailscale 사설망 ──> Lightsail (Ubuntu 24.04, 4GB+)
                            ├─ orca-serve.service
                            ├─ Codex / Claude Code
-                           └─ /home/orca/workspace/*
+                           ├─ /home/orca/workspace/*
+                           └─ (입주 앱: 자기 계정 / 자기 저장소가 소유)
 
 관리 PC VS Code ─ Tailscale SSH ──> orca 계정 (같은 workspace 편집)
 
 관리 PC SSH ── 공인 IP /32 ──> 설치·복구용 ubuntu 계정
 ```
 
-공개 인터넷에는 SSH 22만 현재 관리자 IP `/32`로 연다. Orca의 TCP 6768은 Lightsail
+기본 공인 방화벽은 SSH 22만 현재 관리자 IP `/32`로 연다. Orca의 TCP 6768은 Lightsail
 공인 방화벽에 열지 않으며, 같은 Tailscale tailnet의 브라우저만 접근한다. Orca Remote
 Server/Web Client는 Beta이므로 서버를 공개 인터넷에 직접 노출하지 않는다.
+
+**이 호스트는 인프라 비용 때문에 다른 프로젝트와 공유한다.** 입주 앱은 각자 전용 계정과
+`/srv/<앱>` 아래에서 돌고, 설치·유닛·점검·운영 문서는 **그 앱의 저장소가 소유한다.**
+이 저장소는 인스턴스·고정 IP·공인 방화벽·스냅샷·Orca·Tailscale·OS 계정까지만 책임진다.
+
+경계에서 만나는 지점은 둘뿐이다. 공개 웹이 필요한 입주 앱이 있으면 `enable_public_web=true`로
+80/443을 열고(앱 내부 포트는 열지 않는다), 앱의 영속 데이터는 일일 자동 스냅샷이 함께 담는다.
+현재 입주 앱은 `stock_chatbot` 하나이며 그 운영 기준은 해당 저장소의 `infra/`에 있다.
 
 ## 빠른 시작
 
@@ -85,7 +94,7 @@ Host orca
 
 | 위치 | 역할 |
 |---|---|
-| [`terraform/`](terraform/) | 4GB Lightsail, 고정 IP, 키페어, SSH 전용 공인 방화벽 |
+| [`terraform/`](terraform/) | 4GB Lightsail, 고정 IP, 키페어, 자동 스냅샷, 공인 방화벽 |
 | [`scripts/install/`](scripts/install/) | 호스트, Tailscale, 에이전트 CLI, Orca systemd, 저장소 설치 |
 | [`scripts/util/`](scripts/util/) | 생성·동기화·접근 URL 조회·검증 |
 | [`docs/lightsail-plan.md`](docs/lightsail-plan.md) | 상세 구축, 운영, 백업, 복구 절차 |

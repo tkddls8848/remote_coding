@@ -15,6 +15,16 @@ resource "aws_lightsail_instance" "orca" {
   bundle_id         = var.bundle_id
   key_pair_name     = aws_lightsail_key_pair.orca.name
 
+  dynamic "add_on" {
+    for_each = var.enable_auto_snapshot ? [1] : []
+
+    content {
+      type          = "AutoSnapshot"
+      snapshot_time = var.auto_snapshot_time
+      status        = "Enabled"
+    }
+  }
+
   tags = {
     project = var.instance_name
   }

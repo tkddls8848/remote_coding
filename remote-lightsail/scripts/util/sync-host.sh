@@ -27,7 +27,6 @@ cat > "$tmp" <<TXT
 # sync-host.sh 가 생성. 서버 스크립트가 읽는다.
 REPOS="${REPOS:-}"
 GITHUB_OWNER="${GITHUB_OWNER:-}"
-STOCK_CHATBOT_SERVICE="${STOCK_CHATBOT_SERVICE:-stock-chatbot}"
 ORCA_VERSION="${ORCA_VERSION:-v1.4.188}"
 ORCA_PORT="${ORCA_PORT:-6768}"
 ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-orca}"

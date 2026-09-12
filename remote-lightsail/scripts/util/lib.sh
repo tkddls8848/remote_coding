@@ -17,7 +17,6 @@ for f in "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/host.env"; do
     [ -f "$f" ] && . "$f"
 done
 
-STOCK_CHATBOT_SERVICE="${STOCK_CHATBOT_SERVICE:-stock-chatbot}"
 ORCA_VERSION="${ORCA_VERSION:-v1.4.188}"
 ORCA_PORT="${ORCA_PORT:-6768}"
 ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-orca}"

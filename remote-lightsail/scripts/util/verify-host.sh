@@ -45,14 +45,23 @@ check "$ORCA_SERVICE_USER sudo 그룹 아님" bash -lc \
 check "inotify 감시 한도" bash -lc \
     '[ "$(sysctl -n fs.inotify.max_user_watches)" -ge 524288 ]'
 
+# 이 호스트에 얹힌 다른 프로젝트(입주 앱)의 유닛·경로·포트는 여기서 검사하지 않는다.
+# 각 프로젝트가 자기 저장소에서 점검한다 — 예: stock_chatbot 은 infra/scripts/verify-app.sh.
+# 여기서는 입주 앱이 호스트 자원을 고갈시키지 않는지만 본다.
+say "입주 앱 여유 자원"
+check "루트 파일시스템 여유 20% 이상" bash -lc \
+    '[ "$(df --output=pcent / | tr -dc 0-9)" -le 80 ]'
+
 say "메모리 / 스왑"
 free -h
 swapon --show | grep -q '/swapfile' && ok "스왑 활성" || { warn "스왑 없음"; fail=1; }
 
 say "공인 방화벽 확인 안내"
 cat <<'TXT'
-Lightsail 공인 방화벽은 TCP 22(관리자 공인 IP /32)만 허용해야 한다.
-Orca는 Tailscale Serve HTTPS를 통해서만 접근한다. TCP 6768은 Lightsail 공인 방화벽에 추가하면 안 된다.
+Lightsail 공인 방화벽의 기본값은 TCP 22(관리자 공인 IP /32)만 허용한다.
+입주 앱이 공개 웹을 실제로 서비스할 때만 enable_public_web 으로 80/443 을 연다.
+그 밖의 앱 내부 포트와 Orca 의 TCP 6768 은 추가하지 않는다.
+Orca는 Tailscale Serve HTTPS를 통해서만 접근한다.
 TXT
 
 say "현재 Orca 프로세스의 예상 밖 오류"

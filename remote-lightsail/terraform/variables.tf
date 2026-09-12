@@ -62,3 +62,26 @@ variable "my_ip" {
   type        = string
   default     = ""
 }
+
+variable "enable_public_web" {
+  description = "이 호스트에 입주한 앱이 공개 웹을 서비스할 때만 HTTP/HTTPS(80/443)를 허용한다. 앱 내부 포트는 열지 않으며, 유효한 DNS와 리버스 프록시가 준비된 뒤에만 켠다."
+  type        = bool
+  default     = false
+}
+
+variable "enable_auto_snapshot" {
+  description = "영속 앱 데이터 보호를 위한 Lightsail 일일 자동 스냅샷 활성화 여부."
+  type        = bool
+  default     = true
+}
+
+variable "auto_snapshot_time" {
+  description = "자동 스냅샷 시작 시각(UTC 정시). 기본 19:00 UTC는 04:00 KST/JST다."
+  type        = string
+  default     = "19:00"
+
+  validation {
+    condition     = can(regex("^([01][0-9]|2[0-3]):00$", var.auto_snapshot_time))
+    error_message = "auto_snapshot_time은 UTC 정시 HH:00 형식이어야 한다."
+  }
+}
