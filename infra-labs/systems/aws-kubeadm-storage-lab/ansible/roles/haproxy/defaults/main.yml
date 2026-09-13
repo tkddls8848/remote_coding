@@ -1,3 +1,0 @@
----
-haproxy_k8s_api_port: 6443
-haproxy_stats_port: 9000
