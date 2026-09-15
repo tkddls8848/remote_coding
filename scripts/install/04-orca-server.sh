@@ -59,6 +59,32 @@ if ! id "$ORCA_SERVICE_USER" >/dev/null 2>&1; then
 fi
 ORCA_SERVICE_GROUP="$(id -gn "$ORCA_SERVICE_USER")"
 
+# useradd 로 만든 계정은 비밀번호가 잠겨 있어 `su - orca` 가 막힌다. 다른 설정과 같이
+# 매 실행마다 선언적으로 맞춘다 (수동으로 바꾼 비밀번호는 재실행 때 되돌아간다).
+# 이 값으로 원격 로그인은 되지 않는다 — 06-vscode-remote.sh 가 이 계정의 SSH 비밀번호
+# 인증을 끈다. 다만 호스트를 입주 앱과 공유하므로, 약한 값이면 같은 호스트의 다른 계정이
+# `su` 로 넘어올 수 있다는 점은 감수하는 선택이다.
+if [ -n "$ORCA_SERVICE_PASSWORD" ]; then
+    case "$ORCA_SERVICE_PASSWORD" in
+        *$'\n'*|*$'\r'*) die "ORCA_SERVICE_PASSWORD 에 줄바꿈이 들어 있다." ;;
+    esac
+    say "$ORCA_SERVICE_USER 로컬 비밀번호 설정"
+    # 인자가 아니라 stdin 으로만 넘긴다. ps 목록이나 저널에 값이 남지 않는다.
+    printf '%s:%s\n' "$ORCA_SERVICE_USER" "$ORCA_SERVICE_PASSWORD" | sudo chpasswd
+    ok "비밀번호 설정됨 (06-vscode-remote.sh 로 로그인 셸을 준 뒤 su - $ORCA_SERVICE_USER 가 된다)"
+
+    # 호스트 sshd 가 이 계정의 비밀번호 인증을 받아 준다면 방금 만든 값이 원격 로그인
+    # 경로가 된다. 계정별 차단은 06-vscode-remote.sh 의 드롭인이 하므로, 아직 돌지 않았거나
+    # 설정이 되돌아간 경우에는 알린다.
+    if sudo sshd -T -C "user=$ORCA_SERVICE_USER,host=localhost,addr=127.0.0.1" 2>/dev/null \
+        | grep -qix 'passwordauthentication yes'; then
+        warn "sshd 가 $ORCA_SERVICE_USER 의 비밀번호 인증을 아직 허용한다."
+        warn "./install/06-vscode-remote.sh 를 돌려 이 계정을 키 인증 전용으로 막을 것."
+    fi
+else
+    warn "ORCA_SERVICE_PASSWORD 가 비어 있다 — 계정을 잠긴 상태로 둔다."
+fi
+
 sudo install -d -o root -g root -m 0755 /opt/orca
 sudo install -d -o "$ORCA_SERVICE_USER" -g "$ORCA_SERVICE_GROUP" -m 0750 \
     "/home/$ORCA_SERVICE_USER/workspace"

@@ -18,21 +18,27 @@ as_orca gh auth status >/dev/null 2>&1 || {
     exit 1
 }
 
-# REPOS=all 이면 소유 저장소를 API 로 열거한다. 프라이빗도 포함되며, 그러려면
-# 토큰에 repo 스코프가 있어야 한다 — 없으면 공개 저장소만 돌아오므로 먼저 막는다.
-# 포크와 보관됨(archived)은 개발 대상이 아니라 제외한다.
+# REPOS=all 이면 소유 저장소를 API 로 열거한다. GitHub 프로필의 Repositories 탭에 보이는
+# 것과 같은 범위 — 프라이빗·포크·보관됨(archived)까지 전부다. 프라이빗을 받으려면 토큰에
+# repo 스코프가 있어야 한다. 없으면 공개 저장소만 조용히 돌아오므로 먼저 막는다.
+# 특정 저장소를 빼려면 REPOS_EXCLUDE 에 이름을 적는다.
 if [ "$REPOS" = "all" ]; then
     as_orca gh auth status 2>&1 | grep -q "'repo'" \
         || die "토큰에 repo 스코프가 없어 프라이빗 저장소를 못 가져온다. 먼저 실행할 것:
   sudo -u $ORCA_SERVICE_USER -H /bin/bash -c 'cd \"\$HOME\" && exec gh auth refresh -s repo'"
 
-    say "$GITHUB_OWNER 의 저장소 열거 (프라이빗 포함, 포크·보관 제외)"
+    say "$GITHUB_OWNER 의 저장소 열거 (프라이빗·포크·보관 포함 — 소유 저장소 전부)"
     REPOS="$(as_orca gh repo list "$GITHUB_OWNER" \
-        --limit "$REPOS_LIMIT" --source --no-archived \
+        --limit "$REPOS_LIMIT" \
         --json name --jq '.[].name' | tr '\n' ' ')" \
         || die "gh repo list 실패. 인증과 네트워크를 확인한다."
     [ -n "${REPOS// /}" ] || die "열거 결과가 비었다. GITHUB_OWNER=$GITHUB_OWNER 를 확인한다."
 fi
+
+# gh 로그인 때 git 자격증명 연동을 건너뛰었으면 프라이빗 저장소 clone 이 인증을 물어보며
+# 멈춘다. 헬퍼를 맞춰 두고, 그래도 자격증명이 없으면 프롬프트 대신 즉시 실패하게 한다.
+as_orca gh auth setup-git \
+    || warn "gh auth setup-git 실패 — 프라이빗 저장소 클론이 막힐 수 있다"
 
 workspace="/home/$ORCA_SERVICE_USER/workspace"
 service_group="$(id -gn "$ORCA_SERVICE_USER")"
@@ -47,7 +53,7 @@ for repo in $REPOS; do
         ok "$repo 이미 클론됨"
     else
         say "클론: $GITHUB_OWNER/$repo"
-        as_orca git -C "$workspace" clone \
+        as_orca env GIT_TERMINAL_PROMPT=0 git -C "$workspace" clone \
             "https://github.com/$GITHUB_OWNER/$repo.git" \
             || warn "$repo 클론 실패 — 건너뛴다"
     fi

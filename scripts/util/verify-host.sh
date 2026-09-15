@@ -30,6 +30,10 @@ check "Codex 설치" bash -lc 'command -v codex'
 check "Claude Code 설치" bash -lc 'command -v claude'
 check "GitHub CLI 설치" bash -lc 'command -v gh'
 check "Orca 서비스 계정" id "$ORCA_SERVICE_USER"
+if [ -n "$ORCA_SERVICE_PASSWORD" ]; then
+    check "$ORCA_SERVICE_USER 로컬 비밀번호 설정됨" bash -lc \
+        "sudo passwd -S '$ORCA_SERVICE_USER' | awk '{print \$2}' | grep -qx P"
+fi
 check "Codex 인증" as_orca codex login status
 check "GitHub 인증" as_orca gh auth status
 
@@ -39,6 +43,9 @@ check "$ORCA_SERVICE_USER 로그인 셸" bash -lc \
 check "$ORCA_SERVICE_USER authorized_keys" bash -lc \
     "sudo test -s \"\$(getent passwd '$ORCA_SERVICE_USER' | cut -d: -f6)/.ssh/authorized_keys\""
 check "sshd 드롭인" test -f /etc/ssh/sshd_config.d/60-orca-vscode.conf
+check "$ORCA_SERVICE_USER SSH 비밀번호 인증 차단" bash -lc \
+    "sudo sshd -T -C user='$ORCA_SERVICE_USER',host=localhost,addr=127.0.0.1 \
+        | grep -qix 'passwordauthentication no'"
 check "sshd 설정 유효" sudo sshd -t
 check "$ORCA_SERVICE_USER sudo 그룹 아님" bash -lc \
     "! id -nG '$ORCA_SERVICE_USER' | tr ' ' '\n' | grep -qx -e sudo -e admin"

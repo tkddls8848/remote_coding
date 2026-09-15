@@ -20,6 +20,12 @@ done
 ORCA_VERSION="${ORCA_VERSION:-v1.4.188}"
 ORCA_PORT="${ORCA_PORT:-6768}"
 ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-orca}"
+# 서비스 계정의 로컬 비밀번호. 호스트 안에서 `su - orca` 로 넘어갈 때만 쓴다.
+# 원격 로그인 경로는 아니다 — install/06-vscode-remote.sh 가 이 계정의 SSH 비밀번호
+# 인증을 끄고 공개키만 받는다.
+# 값은 커밋하지 않는 scripts/config.env(서버에서는 host.env)에만 둔다. 여기 기본값이
+# 비어 있으면 04-orca-server.sh 는 비밀번호를 설정하지 않고 계정을 잠긴 채 남긴다.
+ORCA_SERVICE_PASSWORD="${ORCA_SERVICE_PASSWORD:-}"
 ORCA_PAIRING_ADDRESS="${ORCA_PAIRING_ADDRESS:-}"
 
 say()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }

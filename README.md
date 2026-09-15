@@ -55,6 +55,7 @@ sudo tailscale up
 sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec codex login --device-auth'
 sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
 
+# 소유 저장소를 전부(프라이빗·포크·보관 포함) /home/orca/workspace 로 가져온다
 ./install/05-repos.sh
 ./install/06-vscode-remote.sh
 ./util/verify-host.sh
@@ -70,7 +71,14 @@ sudo ./util/show-orca-access.sh
 `06-vscode-remote.sh`는 `orca` 계정에 로그인 셸과 관리 PC 공개키를 부여해 VS Code가
 에이전트와 **같은 계정**으로 붙게 한다. `ubuntu`로 붙어 `/home/orca/workspace`를 편집하면
 새 파일 소유자가 갈라져 Orca가 쓰지 못하는 경로가 생기기 때문이다. `orca`는 sudo 그룹에
-넣지 않고 비밀번호 인증도 막는다.
+넣지 않고 SSH 비밀번호 인증도 막는다.
+
+계정에 로컬 비밀번호를 줄 수 있다. `scripts/config.env`의 `ORCA_SERVICE_PASSWORD`에 적으면
+`04-orca-server.sh`가 실행마다 그 값으로 맞추고, 비워 두면 계정을 잠긴 상태로 남긴다. 값은
+커밋하지 않는다(예시 파일은 비어 있다). 쓰임새는 호스트 안에서 `su - orca`로 넘어가는 것뿐
+이며, 원격에서 이 비밀번호로 붙는 경로는 없다 — sshd 드롭인이 이 계정의 비밀번호 인증을
+끄고 공개키만 받는다. 다만 이 호스트는 입주 앱과 공유하므로, 짧은 값은 다른 계정에 `su`
+경로를 열어 주는 선택이라는 점을 감안해 정한다.
 
 관리 PC의 `~/.ssh/config`:
 

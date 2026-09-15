@@ -34,11 +34,14 @@ ORCA_PORT="${ORCA_PORT:-6768}"
 ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-orca}"
 ORCA_PAIRING_ADDRESS="${ORCA_PAIRING_ADDRESS:-}"
 TXT
+# 비밀번호에는 셸 메타문자가 들어갈 수 있다. host.env 는 그대로 source 되므로 인용해 쓴다.
+printf 'ORCA_SERVICE_PASSWORD=%q\n' "${ORCA_SERVICE_PASSWORD:-}" >> "$tmp"
 
 ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'rm -rf ~/remote-lightsail-scripts && mkdir -p ~/remote-lightsail-scripts'
 scp "${SSH_ARGS[@]}" -qr "$SCRIPT_DIR"/install "$SCRIPT_DIR"/util "ubuntu@$STATIC_IP:~/remote-lightsail-scripts/"
 scp "${SSH_ARGS[@]}" -q "$tmp" "ubuntu@$STATIC_IP:~/remote-lightsail-scripts/host.env"
-ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'find ~/remote-lightsail-scripts -type f -name "*.sh" -exec chmod +x {} +'
+# host.env 는 이제 서비스 계정 비밀번호를 담으므로 ubuntu 만 읽게 한다.
+ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'find ~/remote-lightsail-scripts -type f -name "*.sh" -exec chmod +x {} + && chmod 600 ~/remote-lightsail-scripts/host.env'
 ok "복사 완료"
 
 # 단독 실행할 때만 다음 단계를 안내한다. provision-host.sh가 호출한 경우에는

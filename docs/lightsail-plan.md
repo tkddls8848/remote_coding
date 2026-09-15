@@ -125,6 +125,12 @@ sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
 sudo ./util/show-orca-access.sh
 ```
 
+`05-repos.sh`는 `GITHUB_OWNER` 소유 저장소를 전부 — 프라이빗·포크·보관됨까지, GitHub 프로필의
+Repositories 탭과 같은 범위로 — `/home/orca/workspace` 아래에 클론하고 각각을 Orca에 등록한다.
+`gh auth login`에서 git 자격증명 연동을 건너뛴 경우를 대비해 `gh auth setup-git`을 먼저 맞추고,
+클론은 `GIT_TERMINAL_PROMPT=0`으로 돌려 인증이 없으면 멈추지 않고 실패한다. 새 저장소를 만든
+뒤 다시 돌리면 그것만 추가된다.
+
 Codex device URL과 GitHub device URL도 관리 PC 브라우저에서 연다. AppImage의
 `account add --agent codex`는 headless 환경에서 X11 초기화 또는 Orca single-instance lock에
 걸릴 수 있으므로 현행 절차에서 사용하지 않는다.
@@ -141,6 +147,11 @@ Codex device URL과 GitHub device URL도 관리 PC 브라우저에서 연다. Ap
 - 스크립트는 드롭인을 쓴 뒤 `sshd -t`로 검증하고, 실패하면 드롭인을 지우고 중단한다.
   기존 SSH 세션은 유지되므로 잠기지 않는다.
 - `orca`는 sudo 그룹에 넣지 않는다. 스크립트가 확인하고 들어 있으면 경고한다.
+- `04-orca-server.sh`가 `config.env`(서버에서는 `host.env`)의 `ORCA_SERVICE_PASSWORD`로 계정
+  비밀번호를 맞춘다. 값은 커밋하지 않으며 비어 있으면 계정을 잠긴 채 둔다. 쓰임새는
+  `su - orca` 하나뿐이다. 드롭인이 이 계정의 SSH 비밀번호 인증을 끄므로 원격 로그인 경로는
+  공개키뿐이며, `verify-host.sh`가 둘(비밀번호 설정됨 / SSH 비밀번호 인증 차단)을 함께
+  점검한다. 호스트를 입주 앱과 공유하는 만큼 짧은 값은 `su` 경로를 여는 선택이다.
 - `fs.inotify.max_user_watches`를 524288로 올린다. 기본값에서는 저장소 몇 개만 열어도
   VS Code 파일 감시가 중단된다.
 

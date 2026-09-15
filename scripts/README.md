@@ -23,16 +23,22 @@ sudo ./util/show-orca-access.sh
 - `01-host-base.sh`: Node.js 22, 빌드 도구, Xvfb, AppImage 의존성, 4GB swap
 - `02-agent-cli.sh`: Codex CLI와 Claude Code 전역 설치
 - `03-private-network.sh`: Tailscale 공식 APT 저장소와 데몬
-- `04-orca-server.sh`: 고정 버전 AppImage, `orca` 전용 계정, `orca-serve.service`, Tailscale Serve HTTPS
+- `04-orca-server.sh`: 고정 버전 AppImage, `orca` 전용 계정, `orca-serve.service`, Tailscale Serve HTTPS.
+  계정 비밀번호는 `config.env`의 `ORCA_SERVICE_PASSWORD`로 매 실행 맞추고, 비어 있으면 계정을
+  잠긴 채 둔다. `su - orca` 전용이고 SSH는 06 단계가 이 계정의 비밀번호 인증을 끄므로 원격
+  로그인은 키로만 한다.
 - `05-repos.sh`: `/home/orca/workspace`에 Orca 계정으로 저장소 클론.
-  `REPOS=all`(기본)이면 `GITHUB_OWNER`의 저장소를 `gh`로 열거해 **프라이빗까지 전부**
-  가져오고 포크·보관됨은 건너뛴다. 토큰에 `repo` 스코프가 필요하며 없으면 중단한다.
-  일부만 원하면 `REPOS`에 이름을 공백으로 나열하고, 전체에서 몇 개만 빼려면
-  `REPOS_EXCLUDE`를 쓴다. 새 저장소를 만든 뒤 다시 돌리면 그것만 추가된다.
+  `REPOS=all`(기본)이면 `GITHUB_OWNER`의 저장소를 `gh`로 열거해 **전부** 가져온다 —
+  GitHub 프로필의 Repositories 탭과 같은 범위로 프라이빗·포크·보관됨을 모두 포함한다.
+  토큰에 `repo` 스코프가 필요하며 없으면 중단한다. 일부만 원하면 `REPOS`에 이름을 공백으로
+  나열하고, 전체에서 몇 개만 빼려면 `REPOS_EXCLUDE`를 쓴다. 새 저장소를 만든 뒤 다시 돌리면
+  그것만 추가된다.
 - `06-vscode-remote.sh`: `orca` 계정 SSH 로그인(키 전용), sshd 드롭인, inotify 한도 — VS Code Remote-SSH
 
-`config.env`는 로컬 전용이며 `sync-host.sh`가 필요한 비밀 아닌 값만 서버의 `host.env`로
-복사한다. Tailscale·Codex·GitHub 토큰은 이 파일에 넣지 않는다.
+`config.env`는 로컬 전용이며 `sync-host.sh`가 필요한 값만 서버의 `host.env`(`0600`)로
+복사한다. Tailscale·Codex·GitHub 토큰은 이 파일에 넣지 않는다. 여기 들어가는 유일한
+자격증명은 `ORCA_SERVICE_PASSWORD`이며, 예시 파일에는 값을 두지 않는다 — 원격 로그인이
+아니라 호스트 안 `su` 전용이다.
 
 ## 로컬 유틸리티
 
