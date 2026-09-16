@@ -26,6 +26,13 @@ ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-orca}"
 # 값은 커밋하지 않는 scripts/config.env(서버에서는 host.env)에만 둔다. 여기 기본값이
 # 비어 있으면 04-orca-server.sh 는 비밀번호를 설정하지 않고 계정을 잠긴 채 남긴다.
 ORCA_SERVICE_PASSWORD="${ORCA_SERVICE_PASSWORD:-}"
+# 서비스 계정의 sudo 권한. 이 계정으로 붙은 사람과 에이전트가 호스트를 직접 관리한다.
+#   nopasswd — sudo 그룹 + NOPASSWD 드롭인 (기본). 비밀번호 없이 통과한다.
+#   password — sudo 그룹만. 실행할 때마다 ORCA_SERVICE_PASSWORD 를 입력해야 한다.
+#   off      — sudo 그룹에서 빼고 드롭인을 지운다.
+# 이 호스트는 입주 앱과 공유한다. sudo 를 준다는 것은 이 계정이 /srv/<앱>/.env 를 포함해
+# 호스트 전체를 읽고 쓸 수 있다는 뜻이다.
+ORCA_SERVICE_SUDO="${ORCA_SERVICE_SUDO:-nopasswd}"
 ORCA_PAIRING_ADDRESS="${ORCA_PAIRING_ADDRESS:-}"
 TAILSCALE_HOSTNAME="${TAILSCALE_HOSTNAME:-}"
 # 호스트 타임존. 입주 앱의 cron.d 시각(타임존을 선언할 수 없다)과 Lightsail 자동 스냅샷

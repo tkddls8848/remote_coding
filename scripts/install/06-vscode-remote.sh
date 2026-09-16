@@ -5,7 +5,8 @@
 #
 # VS Code는 에이전트와 같은 계정으로 붙는다. ubuntu로 붙어 /home/orca/workspace를
 # 편집하면 새 파일 소유자가 갈라져 Orca가 쓰지 못하는 경로가 생긴다.
-# 그래서 orca에 로그인 셸과 공개키를 주되, sudo 없이 키 인증만 허용한다.
+# 그래서 orca에 로그인 셸과 공개키를 주고, SSH는 키 인증만 받는다.
+# 이 계정의 sudo 권한은 04-orca-server.sh 가 ORCA_SERVICE_SUDO 로 정한다.
 
 . "$(dirname "${BASH_SOURCE[0]}")/../util/lib.sh"
 
@@ -33,12 +34,16 @@ else
     sudo usermod --shell /bin/bash "$ORCA_SERVICE_USER"
 fi
 
-# 서비스 계정에 셸을 준 이상 권한 상승 경로가 없는지는 명시적으로 확인한다.
+# 셸을 준 이상 권한 상승 경로가 어디까지인지는 눈에 보이게 남긴다. 값을 바꾸는 곳은
+# 04-orca-server.sh 하나뿐이다 (여기서 고치면 두 벌이 되어 갈라진다).
 if id -nG "$ORCA_SERVICE_USER" | tr ' ' '\n' | grep -qx -e sudo -e admin; then
-    warn "$ORCA_SERVICE_USER 가 sudo 그룹에 있다. 서비스 계정에는 필요하지 않다:"
-    warn "  sudo deluser $ORCA_SERVICE_USER sudo"
+    ok "$ORCA_SERVICE_USER 는 sudo 그룹 (ORCA_SERVICE_SUDO=$ORCA_SERVICE_SUDO)"
+    [ "$ORCA_SERVICE_SUDO" = off ] \
+        && warn "설정은 off 인데 그룹에 남아 있다. ./install/04-orca-server.sh 를 다시 돌릴 것."
 else
-    ok "$ORCA_SERVICE_USER 는 sudo 그룹이 아님"
+    ok "$ORCA_SERVICE_USER 는 sudo 그룹이 아님 (ORCA_SERVICE_SUDO=$ORCA_SERVICE_SUDO)"
+    [ "$ORCA_SERVICE_SUDO" = off ] \
+        || warn "설정은 $ORCA_SERVICE_SUDO 인데 권한이 없다. ./install/04-orca-server.sh 를 다시 돌릴 것."
 fi
 
 # --- 3. 공개키 ---------------------------------------------------------------

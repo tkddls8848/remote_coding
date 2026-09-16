@@ -25,7 +25,9 @@ sudo ./util/show-orca-access.sh
 - `04-orca-server.sh`: 고정 버전 AppImage, `orca` 전용 계정, `orca-serve.service`, Tailscale Serve HTTPS.
   계정 비밀번호는 `config.env`의 `ORCA_SERVICE_PASSWORD`로 매 실행 맞추고, 비어 있으면 계정을
   잠긴 채 둔다. `su - orca` 전용이고 SSH는 06 단계가 이 계정의 비밀번호 인증을 끄므로 원격
-  로그인은 키로만 한다.
+  로그인은 키로만 한다. sudo 권한도 이 단계가 `ORCA_SERVICE_SUDO`(`nopasswd` 기본 /
+  `password` / `off`)대로 맞춘다 — 입주 앱과 공유하는 호스트이므로 sudo는 `/srv/<앱>`의
+  비밀까지 여는 선택이라는 점을 알고 정한다.
 - `05-repos.sh`: `/home/orca/workspace`에 Orca 계정으로 저장소 클론.
   `REPOS=all`(기본)이면 `GITHUB_OWNER`의 저장소를 `gh`로 열거해 **전부** 가져온다 —
   GitHub 프로필의 Repositories 탭과 같은 범위로 프라이빗·포크·보관됨을 모두 포함한다.

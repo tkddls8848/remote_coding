@@ -152,7 +152,11 @@ Codex device URL과 GitHub device URL도 관리 PC 브라우저에서 연다. Ap
   `Match` 블록으로 끝내면 메인 설정의 나머지가 전부 그 블록 안으로 들어간다.
 - 스크립트는 드롭인을 쓴 뒤 `sshd -t`로 검증하고, 실패하면 드롭인을 지우고 중단한다.
   기존 SSH 세션은 유지되므로 잠기지 않는다.
-- `orca`는 sudo 그룹에 넣지 않는다. 스크립트가 확인하고 들어 있으면 경고한다.
+- `orca`의 sudo는 `config.env`의 `ORCA_SERVICE_SUDO`로 선언한다 — `nopasswd`(기본, 그룹 +
+  NOPASSWD 드롭인), `password`(그룹만), `off`(그룹에서 제외). `04-orca-server.sh`가 매 실행
+  그 상태로 맞추고, 드롭인은 임시 파일에서 `visudo -c`를 통과한 것만 설치한다(문법 오류
+  하나로 호스트의 sudo 전체가 잠기기 때문이다). `verify-host.sh`가 선언과 실제를 대조한다.
+  이 호스트는 입주 앱과 공유하므로 sudo는 `/srv/<앱>`의 비밀까지 여는 선택이다.
 - `04-orca-server.sh`가 `config.env`(서버에서는 `host.env`)의 `ORCA_SERVICE_PASSWORD`로 계정
   비밀번호를 맞춘다. 값은 커밋하지 않으며 비어 있으면 계정을 잠긴 채 둔다. 쓰임새는
   `su - orca` 하나뿐이다. 드롭인이 이 계정의 SSH 비밀번호 인증을 끄므로 원격 로그인 경로는
