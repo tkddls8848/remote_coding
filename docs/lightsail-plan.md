@@ -60,15 +60,18 @@ Lightsail Ubuntu 24.04 / medium_3_0
 
 ```text
 .
-├─ terraform/             # 인스턴스, 고정 IP, 키페어, 공인 SSH 방화벽
+├─ terraform/             # 인스턴스, 고정 IP, 키페어, 공인 방화벽, 자동 스냅샷
+│  └─ iam-policy.json     # 위 자원에 필요한 Lightsail 권한 (도쿄 리전으로 제한)
 ├─ scripts/
-│  ├─ config.example.env  # Orca 버전과 클론 대상 예시
+│  ├─ config.example.env  # 호스트 타임존, Orca 버전과 클론 대상 예시
 │  ├─ install/            # 서버 설치 01~06
 │  └─ util/               # 프로비저닝, 동기화, URL 조회, 진단, 검증
 └─ docs/                  # 운영 기준과 별도 통합 계획
 ```
 
-- Terraform은 Lightsail 자원만 관리한다.
+- Terraform은 Lightsail 자원만 관리하며, 이 계정의 Lightsail 자원을 만드는 코드는
+  이 디렉터리 하나뿐이다. 입주 앱 저장소는 AWS 자원을 선언하지 않고, 호스트에 요구하는
+  값(공개 웹·스냅샷 시각·타임존)은 `terraform/README.md`의 계약 표를 따른다.
 - 호스트 패키지, Tailscale, Orca, 개발 CLI와 개발 클론은 `scripts/`가 관리한다.
 - Codex·GitHub·Tailscale 자격증명과 Orca pairing URL은 Terraform 변수나 Git 파일에 넣지 않는다.
 - `terraform.tfvars`, Terraform state, `scripts/config.env`는 로컬 실행 상태이므로 커밋하지 않는다.

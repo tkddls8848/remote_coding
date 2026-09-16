@@ -62,6 +62,12 @@ say "입주 앱 여유 자원"
 check "루트 파일시스템 여유 20% 이상" bash -lc \
     '[ "$(df --output=pcent / | tr -dc 0-9)" -le 80 ]'
 
+say "호스트 시각 기준"
+# 입주 앱의 cron.d 백업 시각과 Lightsail 자동 스냅샷 시각이 같은 기준을 보는지는
+# 여기서만 확인할 수 있다 — 앱 쪽 스크립트는 호스트 설정을 바꾸지 않는다.
+check "타임존 $HOST_TIMEZONE" bash -lc \
+    "[ \"\$(timedatectl show -p Timezone --value)\" = '$HOST_TIMEZONE' ]"
+
 say "메모리 / 스왑"
 free -h
 swapon --show | grep -q '/swapfile' && ok "스왑 활성" || { warn "스왑 없음"; fail=1; }

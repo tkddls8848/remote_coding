@@ -7,6 +7,18 @@
 
 export DEBIAN_FRONTEND=noninteractive
 
+# --- 타임존 ---------------------------------------------------------------
+# 입주 앱의 cron.d 는 타임존을 선언할 수 없어 호스트 설정을 그대로 따르고, Lightsail
+# 자동 스냅샷 시각은 UTC 정시다. 두 시각을 같은 기준으로 읽으려면 호스트가 UTC 여야
+# 한다. 기본 Ubuntu 이미지도 UTC 지만, 가정이 아니라 선언으로 남긴다.
+if [ "$(timedatectl show -p Timezone --value)" = "$HOST_TIMEZONE" ]; then
+    ok "타임존 $HOST_TIMEZONE"
+else
+    say "타임존 $HOST_TIMEZONE 적용"
+    sudo timedatectl set-timezone "$HOST_TIMEZONE"
+    ok "타임존 $(timedatectl show -p Timezone --value)"
+fi
+
 say "패키지 갱신"
 sudo apt-get update -qq
 sudo apt-get upgrade -y -qq

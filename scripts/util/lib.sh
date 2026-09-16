@@ -28,6 +28,10 @@ ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-orca}"
 ORCA_SERVICE_PASSWORD="${ORCA_SERVICE_PASSWORD:-}"
 ORCA_PAIRING_ADDRESS="${ORCA_PAIRING_ADDRESS:-}"
 TAILSCALE_HOSTNAME="${TAILSCALE_HOSTNAME:-}"
+# 호스트 타임존. 입주 앱의 cron.d 시각(타임존을 선언할 수 없다)과 Lightsail 자동 스냅샷
+# 시각(UTC 정시)이 같은 기준을 보도록 UTC 로 고정한다. 앱별 스케줄이 현지 시각을 원하면
+# 유닛 파일의 systemd timer 에서 타임존을 선언한다.
+HOST_TIMEZONE="${HOST_TIMEZONE:-UTC}"
 
 say()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 ok()   { printf '\033[1;32m  ok\033[0m %s\n' "$*"; }

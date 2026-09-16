@@ -1,5 +1,10 @@
 # put-instance-public-ports 는 규칙 전체를 교체하는 API 다.
 # 공개 포트의 최종 상태 전체를 phase 변수 하나로 선언한다.
+#
+# 그래서 이 인스턴스의 공개 포트를 선언하는 곳은 이 파일 하나뿐이다. 입주 앱
+# 저장소가 aws_lightsail_instance_public_ports 를 따로 두면 나중에 apply 한 쪽이
+# 상대의 규칙을 통째로 지운다. 앱이 공개 웹을 서비스하려면 자기 저장소에서 포트를
+# 여는 대신 여기 enable_public_web 을 켠다.
 
 data "http" "my_ip" {
   count = var.my_ip == "" ? 1 : 0

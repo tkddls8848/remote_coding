@@ -10,6 +10,50 @@ terraform -chdir=terraform plan
 terraform -chdir=terraform apply
 ```
 
+## 사전 준비 (IAM)
+
+Lightsail 은 EC2 와 별개 서비스이고 `AmazonLightsailFullAccess` 같은 AWS 관리형 정책이
+없으므로, 이 디렉터리의 `iam-policy.json` 을 직접 만들어 붙인다. 이 파일은 이 모듈이
+실제로 호출하는 작업(키페어·인스턴스·고정 IP·공인 방화벽·AutoSnapshot 애드온·스냅샷)만
+담고, `aws:RequestedRegion` 을 `ap-northeast-1` 로 묶는다 — `region` 을 바꾸면 이 조건도
+같이 고친다.
+
+```powershell
+aws iam create-policy --policy-name OrcaHostLightsail --policy-document file://iam-policy.json
+aws iam attach-user-policy --user-name <내 IAM 사용자> --policy-arn <위 출력의 Arn>
+```
+
+이미 붙어 있는 정책을 고칠 때는 `create-policy` 가 아니라 새 버전을 만든다(관리형 정책은
+버전이 5개가 차면 오래된 것부터 지워야 한다).
+
+```powershell
+$arn = (aws iam list-policies --query "Policies[?PolicyName=='OrcaHostLightsail'].Arn" --output text)
+aws iam create-policy-version --policy-arn $arn --policy-document file://iam-policy.json --set-as-default
+```
+
+AutoSnapshot 애드온에는 `lightsail:EnableAddOn` 이 필요하다. 이 권한이 빠진 정책으로는
+`enable_auto_snapshot = true` 인 apply 가 `AccessDeniedException` 으로 멈춘다.
+
+## 입주 앱과의 계약
+
+이 호스트는 입주 앱과 공유한다. **AWS 자원을 만드는 Terraform 은 이 디렉터리 하나뿐이고**,
+입주 앱 저장소는 아래 값을 읽어서 자기 유닛·cron·문서를 맞춘다. 앱 저장소가 같은 자원을
+따로 선언하면(특히 `aws_lightsail_instance_public_ports`) 나중에 apply 한 쪽이 상대의 규칙을
+통째로 덮으므로 하지 않는다.
+
+| 계약 값 | 현재 | 읽는 법 |
+|---|---|---|
+| 리전 / AZ | `ap-northeast-1` / `ap-northeast-1a` | `terraform output -raw region`, `-raw availability_zone` |
+| 인스턴스 이름 | `orca-host-tokyo` | `terraform output -raw instance_name` |
+| 자동 스냅샷 시각 | 매일 19:00 UTC | `terraform output -raw auto_snapshot_time_utc` |
+| 공개 웹 80/443 | `enable_public_web` | `terraform output -raw public_web_enabled` |
+| 호스트 타임존 | `UTC` | `scripts/config.env` 의 `HOST_TIMEZONE` |
+| 입주 앱 배치 | `/srv/<앱>`, 앱 전용 시스템 계정 | 앱 저장소가 소유 |
+
+앱의 데이터 백업은 자동 스냅샷 시각보다 앞에 끝낸다(현재 `stock_chatbot` 은 18:00 UTC).
+호스트 타임존이 UTC 이므로 앱의 `cron.d` 시각도 UTC 로 읽힌다 — 타임존을 선언할 수 있는
+systemd timer 와 달리 cron 은 호스트 설정을 그대로 따른다.
+
 공인 방화벽의 기본 의도 상태는 TCP 22 하나이며 현재 관리자 공인 IP `/32`에만 허용된다.
 `my_ip`를 비우면 apply 시 `checkip.amazonaws.com`에서 감지한다. Orca TCP 6768은 Tailscale
 사설 경로로만 사용하므로 Terraform 방화벽에 추가하지 않는다. 입주 앱의 내부 포트도
