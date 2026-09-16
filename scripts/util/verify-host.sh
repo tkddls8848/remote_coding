@@ -14,8 +14,11 @@ say "Orca 상시 서비스"
 check "orca-serve active" systemctl is-active --quiet orca-serve.service
 check "orca-serve 부팅 시 자동 시작" systemctl is-enabled --quiet orca-serve.service
 check "Orca AppImage" test -x /opt/orca/orca-linux.AppImage
+orca_started_at="$(systemctl show orca-serve.service -p ActiveEnterTimestamp --value 2>/dev/null)"
+[ -n "$orca_started_at" ] || orca_started_at="15 min ago"
 check "Orca 준비 이벤트" bash -lc \
-    'sudo journalctl -u orca-serve.service -o cat --no-pager | jq -Re '\''fromjson? | select(.type == "orca_server_ready" and .schemaVersion == 1 and .pairing.available == true and (.advertisedEndpoint | startswith("wss://")) and (.pairing.webClientUrl | startswith("https://")))'\'' >/dev/null'
+    'sudo journalctl -u orca-serve.service --since "$1" -o cat --no-pager | jq -Re '\''fromjson? | select(.type == "orca_server_ready" and .schemaVersion == 1 and .pairing.available == true and (.advertisedEndpoint | startswith("wss://")) and (.pairing.webClientUrl | startswith("https://")))'\'' >/dev/null' \
+    bash "$orca_started_at"
 check "Orca Web Client HTML" curl -fsS "http://127.0.0.1:${ORCA_PORT}/web-index.html"
 
 say "사설망"

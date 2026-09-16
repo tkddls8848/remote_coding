@@ -13,7 +13,13 @@ need tailscale
 [[ "$ORCA_SERVICE_USER" =~ ^[a-z_][a-z0-9_-]*$ ]] || die "ORCA_SERVICE_USER 형식이 잘못되었다."
 
 tailscale_ip="$(tailscale ip -4 2>/dev/null | head -1)"
-[ -n "$tailscale_ip" ] || die "Tailscale이 연결되지 않았다. 먼저 'sudo tailscale up'을 실행할 것."
+[ -n "$tailscale_ip" ] || die "Tailscale이 연결되지 않았다. 먼저 ./install/03-private-network.sh를 실행할 것."
+
+if [ -n "$TAILSCALE_HOSTNAME" ]; then
+    current_hostname="$(tailscale status --json | jq -r '.Self.HostName // empty')"
+    [ "${current_hostname,,}" = "${TAILSCALE_HOSTNAME,,}" ] \
+        || die "Tailscale 호스트명이 기대값과 다르다 (현재: ${current_hostname:-없음}, 기대: $TAILSCALE_HOSTNAME). ./install/03-private-network.sh를 다시 실행할 것."
+fi
 
 # Orca Web은 crypto.randomUUID 등을 사용한다. Tailscale IP의 평문 HTTP로 열면 브라우저가
 # Web Crypto를 제한해 root가 렌더링되지 않고 빈 화면만 보인다. 기본 구성은 Tailscale Serve가
@@ -34,11 +40,16 @@ fi
 
 if [ "$configure_tailscale_serve" -eq 1 ]; then
     say "Tailscale Serve HTTPS → Orca localhost:${ORCA_PORT}"
-    if ! serve_output="$(sudo tailscale serve --bg "$ORCA_PORT" 2>&1)"; then
+    # 이 호스트의 Serve 구성은 이 IaC가 전담한다. 이전 MagicDNS 이름이 남아 있어도
+    # 최초 설치와 재프로비저닝의 결과가 같도록 초기화한 뒤 명시적인 localhost URL로 맞춘다.
+    sudo tailscale serve reset >/dev/null
+    if ! serve_output="$(sudo tailscale serve --bg "http://127.0.0.1:${ORCA_PORT}" 2>&1)"; then
         printf '%s\n' "$serve_output" >&2
         die "Tailscale Serve 활성화가 필요하다. 출력된 승인 URL은 관리 PC 브라우저에서 연 뒤 이 스크립트를 다시 실행할 것."
     fi
     printf '%s\n' "$serve_output"
+    sudo tailscale serve status | grep -Fq "https://${tailscale_dns}" \
+        || die "Tailscale Serve가 현재 MagicDNS 이름(${tailscale_dns})으로 구성되지 않았다."
 fi
 
 case "$(uname -m)" in

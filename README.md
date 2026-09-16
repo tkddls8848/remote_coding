@@ -45,10 +45,9 @@ Copy-Item .\scripts\config.example.env .\scripts\config.env
 cd ~/remote-lightsail-scripts
 ./install/01-host-base.sh
 ./install/02-agent-cli.sh
-./install/03-private-network.sh
-sudo tailscale up
+./install/03-private-network.sh  # 최초 실행 시 인증 URL을 출력하고 완료될 때까지 대기
 
-# 출력된 URL로 Tailscale 인증을 끝낸 뒤
+# Tailscale 인증이 완료되면
 ./install/04-orca-server.sh
 
 # 자격증명은 반드시 Orca 서비스 계정에 등록한다. headless 서버는 device code를 쓴다.
@@ -65,6 +64,10 @@ sudo ./util/show-orca-access.sh
 마지막 명령이 출력한 URL을 같은 tailnet에 연결된 관리 PC의 브라우저에서 연다. URL에는
 접근 capability가 포함되므로 비밀번호처럼 취급한다. 최초 페어링 뒤 브라우저는 발급된
 클라이언트 자격증명을 보관하며, 서버 재부팅 후에도 다시 연결된다.
+
+`sync-host.sh`는 Terraform의 `instance_name`을 `TAILSCALE_HOSTNAME`으로 전달한다.
+`03-private-network.sh`는 최초 인증 때부터 이 이름을 적용하고 제어면 반영을 기다린 뒤 종료하므로,
+Orca pairing URL과 Tailscale Serve 주소가 임시 EC2 호스트명(`ip-172-...`)으로 굳지 않는다.
 
 ## VS Code Remote-SSH
 

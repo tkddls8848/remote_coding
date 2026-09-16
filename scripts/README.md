@@ -7,8 +7,7 @@ Lightsail 호스트를 Tailscale 전용 Orca 서버로 만드는 멱등형 설�
 ```bash
 ./install/01-host-base.sh
 ./install/02-agent-cli.sh
-./install/03-private-network.sh
-sudo tailscale up
+./install/03-private-network.sh  # 최초 실행 시 브라우저 인증 포함
 ./install/04-orca-server.sh
 
 sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec codex login --device-auth'
@@ -22,7 +21,7 @@ sudo ./util/show-orca-access.sh
 
 - `01-host-base.sh`: Node.js 22, 빌드 도구, Xvfb, AppImage 의존성, 4GB swap
 - `02-agent-cli.sh`: Codex CLI와 Claude Code 전역 설치
-- `03-private-network.sh`: Tailscale 공식 APT 저장소와 데몬
+- `03-private-network.sh`: Tailscale 공식 APT 저장소, 안정적인 MagicDNS 이름, 최초 브라우저 인증
 - `04-orca-server.sh`: 고정 버전 AppImage, `orca` 전용 계정, `orca-serve.service`, Tailscale Serve HTTPS.
   계정 비밀번호는 `config.env`의 `ORCA_SERVICE_PASSWORD`로 매 실행 맞추고, 비어 있으면 계정을
   잠긴 채 둔다. `su - orca` 전용이고 SSH는 06 단계가 이 계정의 비밀번호 인증을 끄므로 원격
@@ -39,6 +38,9 @@ sudo ./util/show-orca-access.sh
 복사한다. Tailscale·Codex·GitHub 토큰은 이 파일에 넣지 않는다. 여기 들어가는 유일한
 자격증명은 `ORCA_SERVICE_PASSWORD`이며, 예시 파일에는 값을 두지 않는다 — 원격 로그인이
 아니라 호스트 안 `su` 전용이다.
+
+`TAILSCALE_HOSTNAME`을 비우면 `sync-host.sh`가 Terraform의 `instance_name`을 사용한다.
+최초 설치부터 같은 MagicDNS 이름을 유지하려면 특별한 이유가 없는 한 비워 둔다.
 
 ## 로컬 유틸리티
 

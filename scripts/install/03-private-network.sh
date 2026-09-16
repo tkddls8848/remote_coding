@@ -8,6 +8,9 @@
 
 export DEBIAN_FRONTEND=noninteractive
 
+need curl
+need jq
+
 if command -v tailscale >/dev/null 2>&1; then
     ok "Tailscale 이미 설치됨"
 else
@@ -27,16 +30,55 @@ fi
 
 sudo systemctl enable --now tailscaled
 
+if [ -n "$TAILSCALE_HOSTNAME" ]; then
+    [[ "$TAILSCALE_HOSTNAME" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$ ]] \
+        || die "TAILSCALE_HOSTNAME 형식이 잘못되었다: $TAILSCALE_HOSTNAME"
+fi
+
+tailscale_up_args=()
+[ -z "$TAILSCALE_HOSTNAME" ] || tailscale_up_args+=(--hostname="$TAILSCALE_HOSTNAME")
+
 if tailscale ip -4 >/dev/null 2>&1; then
-    ok "Tailscale 연결됨: $(tailscale ip -4 | head -1)"
+    if [ -n "$TAILSCALE_HOSTNAME" ]; then
+        sudo tailscale set --hostname="$TAILSCALE_HOSTNAME"
+    fi
 else
-    warn "Tailscale 인증이 아직 필요하다. 아래 명령의 URL을 브라우저에서 연 뒤 이 스크립트를 다시 실행한다."
+    say "Tailscale 최초 인증"
+    warn "아래에 표시되는 URL을 관리 PC 브라우저에서 열어 인증한다. 인증될 때까지 이 단계는 대기한다."
     echo
-    echo "  sudo tailscale up"
+    sudo tailscale up "${tailscale_up_args[@]}"
     echo
 fi
 
+tailscale_ip=""
+for _ in $(seq 1 30); do
+    tailscale_ip="$(tailscale ip -4 2>/dev/null | head -1)"
+    [ -z "$tailscale_ip" ] || break
+    sleep 1
+done
+[ -n "$tailscale_ip" ] || die "Tailscale 인증 후에도 IPv4를 받지 못했다. ./install/03-private-network.sh를 다시 실행할 것."
+
+if [ -n "$TAILSCALE_HOSTNAME" ]; then
+    hostname_converged=0
+    for _ in $(seq 1 30); do
+        current_hostname="$(tailscale status --json | jq -r '.Self.HostName // empty')"
+        if [ "${current_hostname,,}" = "${TAILSCALE_HOSTNAME,,}" ]; then
+            hostname_converged=1
+            break
+        fi
+        sleep 1
+    done
+    [ "$hostname_converged" -eq 1 ] \
+        || die "Tailscale 호스트명이 30초 안에 반영되지 않았다 (현재: ${current_hostname:-없음}, 기대: $TAILSCALE_HOSTNAME)."
+fi
+
+tailscale_dns="$(tailscale status --json | jq -r '.Self.DNSName // empty' | sed 's/\.$//')"
+[ -n "$tailscale_dns" ] || die "Tailscale MagicDNS 이름을 찾지 못했다. tailnet에서 MagicDNS를 활성화할 것."
+
+ok "Tailscale 연결됨: $tailscale_ip"
+ok "MagicDNS: $tailscale_dns"
+
 cat <<'TXT'
 관리 PC에도 Tailscale을 설치하고 같은 tailnet에 로그인해야 한다.
-다음: Tailscale 연결 후 ./install/04-orca-server.sh
+다음: ./install/04-orca-server.sh
 TXT

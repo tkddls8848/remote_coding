@@ -27,6 +27,7 @@ ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-orca}"
 # 비어 있으면 04-orca-server.sh 는 비밀번호를 설정하지 않고 계정을 잠긴 채 남긴다.
 ORCA_SERVICE_PASSWORD="${ORCA_SERVICE_PASSWORD:-}"
 ORCA_PAIRING_ADDRESS="${ORCA_PAIRING_ADDRESS:-}"
+TAILSCALE_HOSTNAME="${TAILSCALE_HOSTNAME:-}"
 
 say()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 ok()   { printf '\033[1;32m  ok\033[0m %s\n' "$*"; }

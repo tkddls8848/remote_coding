@@ -15,6 +15,10 @@ STATIC_IP="${STATIC_IP:-$(tf_output static_ip)}"
 [ -n "$STATIC_IP" ] || die "고정 IP 를 찾을 수 없다. terraform apply 를 먼저 실행할 것 (terraform/README.md)."
 export STATIC_IP
 
+# Keep the Tailscale MagicDNS name aligned with the stable Lightsail instance name.
+# The default Ubuntu EC2 hostname (ip-172-...) can change when an instance is rebuilt.
+TAILSCALE_HOSTNAME="${TAILSCALE_HOSTNAME:-$(tf_output instance_name)}"
+
 say "대상: ubuntu@$STATIC_IP"
 
 # 기본 키가 아닌 키로 만든 인스턴스면 provision-host.sh 가 SSH_KEY 를 넘겨준다.
@@ -33,6 +37,7 @@ ORCA_VERSION="${ORCA_VERSION:-v1.4.188}"
 ORCA_PORT="${ORCA_PORT:-6768}"
 ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-orca}"
 ORCA_PAIRING_ADDRESS="${ORCA_PAIRING_ADDRESS:-}"
+TAILSCALE_HOSTNAME="${TAILSCALE_HOSTNAME:-}"
 TXT
 # 비밀번호에는 셸 메타문자가 들어갈 수 있다. host.env 는 그대로 source 되므로 인용해 쓴다.
 printf 'ORCA_SERVICE_PASSWORD=%q\n' "${ORCA_SERVICE_PASSWORD:-}" >> "$tmp"
@@ -55,8 +60,7 @@ cat <<TXT
   cd ~/remote-lightsail-scripts
   ./install/01-host-base.sh  # 툴체인 + 스왑 + Node
   ./install/02-agent-cli.sh  # Claude/Codex CLI 설치 (로그인은 사람이 직접)
-  ./install/03-private-network.sh
-  sudo tailscale up          # 출력 URL에서 로그인 (최초 1회)
+  ./install/03-private-network.sh  # 최초 실행 시 인증 URL을 출력하고 완료될 때까지 대기
   ./install/04-orca-server.sh
   sudo -u orca -H /bin/bash -c 'cd "\$HOME" && exec codex login --device-auth'
   sudo -u orca -H /bin/bash -c 'cd "\$HOME" && exec gh auth login'

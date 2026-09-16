@@ -170,8 +170,7 @@ cat <<TXT
   cd ~/remote-lightsail-scripts
   ./install/01-host-base.sh
   ./install/02-agent-cli.sh
-  ./install/03-private-network.sh
-  sudo tailscale up                # 최초 1회 브라우저 로그인
+  ./install/03-private-network.sh  # 최초 실행 시 브라우저 인증 포함
   ./install/04-orca-server.sh
   sudo -u orca -H /bin/bash -c 'cd "\$HOME" && exec codex login --device-auth'
   sudo -u orca -H /bin/bash -c 'cd "\$HOME" && exec gh auth login'

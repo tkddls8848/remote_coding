@@ -101,12 +101,15 @@ Copy-Item scripts\config.example.env scripts\config.env
 cd ~/remote-lightsail-scripts
 ./install/01-host-base.sh
 ./install/02-agent-cli.sh
-./install/03-private-network.sh
-sudo tailscale up
+./install/03-private-network.sh  # 최초 실행 시 인증 URL을 출력하고 완료될 때까지 대기
 ```
 
-`tailscale up`이 출력한 URL은 원격 서버 안의 브라우저가 아니라 관리 PC 브라우저에서 연다. 관리
+스크립트가 출력한 Tailscale 인증 URL은 원격 서버 안의 브라우저가 아니라 관리 PC 브라우저에서 연다. 관리
 PC도 같은 tailnet에 로그인해야 한다.
+
+`sync-host.sh`가 Terraform `instance_name`을 `TAILSCALE_HOSTNAME`으로 넘기고, 03 단계가
+`tailscale up --hostname`에 적용한 뒤 이름 반영까지 기다린다. 따라서 다음 단계가 생성하는
+MagicDNS·Serve·Orca pairing 주소는 처음부터 같은 안정적인 이름을 사용한다.
 
 ```bash
 ./install/04-orca-server.sh

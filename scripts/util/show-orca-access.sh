@@ -14,7 +14,16 @@ fi
 
 command -v jq >/dev/null 2>&1 || { echo "jq가 필요하다." >&2; exit 1; }
 
-ready="$({ journalctl -u orca-serve.service -o cat --no-pager 2>/dev/null || true; } \
+systemctl is-active --quiet orca-serve.service || {
+    echo "orca-serve.service가 실행 중이 아니다." >&2
+    echo "sudo systemctl status orca-serve --no-pager" >&2
+    exit 1
+}
+
+started_at="$(systemctl show orca-serve.service -p ActiveEnterTimestamp --value)"
+[ -n "$started_at" ] || { echo "Orca 서비스 시작 시각을 찾지 못했다." >&2; exit 1; }
+
+ready="$({ journalctl -u orca-serve.service --since "$started_at" -o cat --no-pager 2>/dev/null || true; } \
     | jq -Rrc 'fromjson? | select(.type == "orca_server_ready" and .schemaVersion == 1)' \
     | tail -1)"
 
@@ -33,6 +42,22 @@ fi
 
 web_url="$(jq -r '.pairing.webClientUrl // empty' <<<"$ready")"
 [ -n "$web_url" ] || { echo "준비 이벤트에 Web Client URL이 없다." >&2; exit 1; }
+
+advertised_endpoint="$(jq -r '.advertisedEndpoint // empty' <<<"$ready")"
+case "$advertised_endpoint" in
+    wss://*.ts.net|wss://*.ts.net:*)
+        current_dns="$(tailscale status --json 2>/dev/null | jq -r '.Self.DNSName // empty' | sed 's/\.$//')"
+        advertised_host="${advertised_endpoint#wss://}"
+        advertised_host="${advertised_host%%:*}"
+        [ "$advertised_host" = "$current_dns" ] || {
+            echo "Orca pairing 주소가 현재 MagicDNS 이름과 다르다." >&2
+            echo "  pairing:  $advertised_host" >&2
+            echo "  MagicDNS: $current_dns" >&2
+            echo "./install/04-orca-server.sh를 다시 실행할 것." >&2
+            exit 1
+        }
+        ;;
+esac
 
 if [ "$url_only" = false ]; then
     cat <<'TXT'
