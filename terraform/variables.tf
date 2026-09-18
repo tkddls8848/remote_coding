@@ -4,6 +4,17 @@ variable "region" {
   default     = "ap-northeast-1"
 }
 
+variable "availability_zone" {
+  description = "인스턴스 AZ. 비우면 <region>a 를 쓴다. region 하위여야 한다."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.availability_zone == "" || can(regex("^[a-z]{2}-[a-z]+-[0-9][a-z]$", var.availability_zone))
+    error_message = "availability_zone 은 비우거나 ap-northeast-1a 형식이어야 한다."
+  }
+}
+
 variable "instance_name" {
   description = "Lightsail 인스턴스 이름"
   type        = string
@@ -76,12 +87,31 @@ variable "enable_auto_snapshot" {
 }
 
 variable "auto_snapshot_time" {
-  description = "자동 스냅샷 시작 시각(UTC 정시). 기본 19:00 UTC는 04:00 KST/JST다."
+  description = <<-EOT
+    자동 스냅샷 시작 시각(UTC 정시). 기본 19:00 UTC는 04:00 KST/JST다.
+
+    **입주 앱과의 계약.** 입주 앱은 자기 데이터 백업을 이 시각보다 앞에 끝내도록
+    잡는다(현재 stock_chatbot 은 18:00 UTC). 호스트 타임존은 UTC 고정이므로
+    (scripts/config.env 의 HOST_TIMEZONE) 앱의 cron 시각도 UTC 로 읽힌다.
+    이 값을 바꾸면 입주 앱 저장소의 백업 시각도 함께 옮긴다.
+  EOT
   type        = string
   default     = "19:00"
 
   validation {
     condition     = can(regex("^([01][0-9]|2[0-3]):00$", var.auto_snapshot_time))
     error_message = "auto_snapshot_time은 UTC 정시 HH:00 형식이어야 한다."
+  }
+}
+
+variable "tags" {
+  description = <<-EOT
+    태그를 지원하는 모든 리소스에 붙일 기본 태그. provider 의 default_tags 로 들어가며
+    Project 는 instance_name 으로 자동으로 채워진다. 고정 IP 처럼 태그 인자가 없는
+    리소스에는 적용되지 않는다.
+  EOT
+  type        = map(string)
+  default = {
+    ManagedBy = "terraform"
   }
 }

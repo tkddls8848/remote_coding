@@ -19,13 +19,15 @@ sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
 sudo ./util/show-orca-access.sh
 ```
 
-- `01-host-base.sh`: Node.js 22, 빌드 도구, Xvfb, AppImage 의존성, 4GB swap
+- `01-host-base.sh`: 타임존(`HOST_TIMEZONE`, 기본 UTC), Node.js 22, 빌드 도구, Xvfb, AppImage 의존성, 4GB swap
 - `02-agent-cli.sh`: Codex CLI와 Claude Code 전역 설치
 - `03-private-network.sh`: Tailscale 공식 APT 저장소, 안정적인 MagicDNS 이름, 최초 브라우저 인증
 - `04-orca-server.sh`: 고정 버전 AppImage, `orca` 전용 계정, `orca-serve.service`, Tailscale Serve HTTPS.
   계정 비밀번호는 `config.env`의 `ORCA_SERVICE_PASSWORD`로 매 실행 맞추고, 비어 있으면 계정을
   잠긴 채 둔다. `su - orca` 전용이고 SSH는 06 단계가 이 계정의 비밀번호 인증을 끄므로 원격
-  로그인은 키로만 한다.
+  로그인은 키로만 한다. sudo 권한도 이 단계가 `ORCA_SERVICE_SUDO`(`nopasswd` 기본 /
+  `password` / `off`)대로 맞춘다 — 입주 앱과 공유하는 호스트이므로 sudo는 `/srv/<앱>`의
+  비밀까지 여는 선택이라는 점을 알고 정한다.
 - `05-repos.sh`: `/home/orca/workspace`에 Orca 계정으로 저장소 클론.
   `REPOS=all`(기본)이면 `GITHUB_OWNER`의 저장소를 `gh`로 열거해 **전부** 가져온다 —
   GitHub 프로필의 Repositories 탭과 같은 범위로 프라이빗·포크·보관됨을 모두 포함한다.
@@ -38,6 +40,11 @@ sudo ./util/show-orca-access.sh
 복사한다. Tailscale·Codex·GitHub 토큰은 이 파일에 넣지 않는다. 여기 들어가는 유일한
 자격증명은 `ORCA_SERVICE_PASSWORD`이며, 예시 파일에는 값을 두지 않는다 — 원격 로그인이
 아니라 호스트 안 `su` 전용이다.
+
+`HOST_TIMEZONE`은 입주 앱과의 계약 값이다. 입주 앱의 `cron.d`는 타임존을 선언할 수 없어
+호스트 설정을 그대로 따르고, Lightsail 자동 스냅샷 시각은 UTC 정시다. 두 시각을 같은
+기준으로 읽기 위해 UTC로 고정하며, 바꾸면 입주 앱 저장소의 백업 시각도 함께 옮긴다.
+`verify-host.sh`가 이 값을 확인한다.
 
 `TAILSCALE_HOSTNAME`을 비우면 `sync-host.sh`가 Terraform의 `instance_name`을 사용한다.
 최초 설치부터 같은 MagicDNS 이름을 유지하려면 특별한 이유가 없는 한 비워 둔다.

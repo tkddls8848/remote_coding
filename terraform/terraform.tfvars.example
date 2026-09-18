@@ -6,6 +6,9 @@
 # 다른 리전 배포가 로컬 state 에 이미 있으면 workspace 로 분리한다(README "도쿄 신규 배포" 참고).
 region = "ap-northeast-1"
 
+# 비우면 <region>a 를 쓴다. 다른 AZ 가 필요할 때만 적는다.
+# availability_zone = "ap-northeast-1a"
+
 # Orca + 단일 코딩 에이전트 기본값: 4GB RAM, 2 vCPU.
 # 병렬 에이전트/브라우저 탭을 자주 쓰면 large_3_0(8GB)을 권장한다.
 bundle_id = "medium_3_0"
@@ -25,6 +28,8 @@ phase = "final"
 enable_public_web = false
 
 # 매일 19:00 UTC(04:00 KST/JST)에 영속 앱 데이터가 포함된 자동 스냅샷을 만든다.
+# 입주 앱은 자기 데이터 백업을 이 시각 앞에 끝낸다(stock_chatbot 은 18:00 UTC).
+# 시각을 옮기면 입주 앱 저장소의 백업 시각도 함께 옮긴다.
 enable_auto_snapshot = true
 auto_snapshot_time   = "19:00"
 

@@ -50,8 +50,26 @@ check "$ORCA_SERVICE_USER SSH 비밀번호 인증 차단" bash -lc \
     "sudo sshd -T -C user='$ORCA_SERVICE_USER',host=localhost,addr=127.0.0.1 \
         | grep -qix 'passwordauthentication no'"
 check "sshd 설정 유효" sudo sshd -t
-check "$ORCA_SERVICE_USER sudo 그룹 아님" bash -lc \
-    "! id -nG '$ORCA_SERVICE_USER' | tr ' ' '\n' | grep -qx -e sudo -e admin"
+# sudo 권한은 ORCA_SERVICE_SUDO 가 선언한 상태와 같은지를 본다 (있음/없음 자체가
+# 아니라 선언과 실제가 갈라졌는지가 점검 대상이다).
+case "$ORCA_SERVICE_SUDO" in
+    nopasswd)
+        check "$ORCA_SERVICE_USER sudo 비밀번호 없이 허용" bash -lc \
+            "sudo -l -U '$ORCA_SERVICE_USER' 2>/dev/null | grep -q 'NOPASSWD: ALL'"
+        ;;
+    password)
+        check "$ORCA_SERVICE_USER sudo 그룹" bash -lc \
+            "id -nG '$ORCA_SERVICE_USER' | tr ' ' '\n' | grep -qx -e sudo -e admin"
+        ;;
+    off)
+        check "$ORCA_SERVICE_USER sudo 그룹 아님" bash -lc \
+            "! id -nG '$ORCA_SERVICE_USER' | tr ' ' '\n' | grep -qx -e sudo -e admin"
+        ;;
+    *)
+        warn "ORCA_SERVICE_SUDO 값이 잘못됐다: $ORCA_SERVICE_SUDO"
+        fail=1
+        ;;
+esac
 check "inotify 감시 한도" bash -lc \
     '[ "$(sysctl -n fs.inotify.max_user_watches)" -ge 524288 ]'
 
@@ -61,6 +79,12 @@ check "inotify 감시 한도" bash -lc \
 say "입주 앱 여유 자원"
 check "루트 파일시스템 여유 20% 이상" bash -lc \
     '[ "$(df --output=pcent / | tr -dc 0-9)" -le 80 ]'
+
+say "호스트 시각 기준"
+# 입주 앱의 cron.d 백업 시각과 Lightsail 자동 스냅샷 시각이 같은 기준을 보는지는
+# 여기서만 확인할 수 있다 — 앱 쪽 스크립트는 호스트 설정을 바꾸지 않는다.
+check "타임존 $HOST_TIMEZONE" bash -lc \
+    "[ \"\$(timedatectl show -p Timezone --value)\" = '$HOST_TIMEZONE' ]"
 
 say "메모리 / 스왑"
 free -h

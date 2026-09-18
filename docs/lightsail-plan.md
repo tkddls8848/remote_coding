@@ -60,15 +60,18 @@ Lightsail Ubuntu 24.04 / medium_3_0
 
 ```text
 .
-├─ terraform/             # 인스턴스, 고정 IP, 키페어, 공인 SSH 방화벽
+├─ terraform/             # 인스턴스, 고정 IP, 키페어, 공인 방화벽, 자동 스냅샷
+│  └─ iam-policy.json     # 위 자원에 필요한 Lightsail 권한 (도쿄 리전으로 제한)
 ├─ scripts/
-│  ├─ config.example.env  # Orca 버전과 클론 대상 예시
+│  ├─ config.example.env  # 호스트 타임존, Orca 버전과 클론 대상 예시
 │  ├─ install/            # 서버 설치 01~06
 │  └─ util/               # 프로비저닝, 동기화, URL 조회, 진단, 검증
 └─ docs/                  # 운영 기준과 별도 통합 계획
 ```
 
-- Terraform은 Lightsail 자원만 관리한다.
+- Terraform은 Lightsail 자원만 관리하며, 이 계정의 Lightsail 자원을 만드는 코드는
+  이 디렉터리 하나뿐이다. 입주 앱 저장소는 AWS 자원을 선언하지 않고, 호스트에 요구하는
+  값(공개 웹·스냅샷 시각·타임존)은 `terraform/README.md`의 계약 표를 따른다.
 - 호스트 패키지, Tailscale, Orca, 개발 CLI와 개발 클론은 `scripts/`가 관리한다.
 - Codex·GitHub·Tailscale 자격증명과 Orca pairing URL은 Terraform 변수나 Git 파일에 넣지 않는다.
 - `terraform.tfvars`, Terraform state, `scripts/config.env`는 로컬 실행 상태이므로 커밋하지 않는다.
@@ -149,7 +152,11 @@ Codex device URL과 GitHub device URL도 관리 PC 브라우저에서 연다. Ap
   `Match` 블록으로 끝내면 메인 설정의 나머지가 전부 그 블록 안으로 들어간다.
 - 스크립트는 드롭인을 쓴 뒤 `sshd -t`로 검증하고, 실패하면 드롭인을 지우고 중단한다.
   기존 SSH 세션은 유지되므로 잠기지 않는다.
-- `orca`는 sudo 그룹에 넣지 않는다. 스크립트가 확인하고 들어 있으면 경고한다.
+- `orca`의 sudo는 `config.env`의 `ORCA_SERVICE_SUDO`로 선언한다 — `nopasswd`(기본, 그룹 +
+  NOPASSWD 드롭인), `password`(그룹만), `off`(그룹에서 제외). `04-orca-server.sh`가 매 실행
+  그 상태로 맞추고, 드롭인은 임시 파일에서 `visudo -c`를 통과한 것만 설치한다(문법 오류
+  하나로 호스트의 sudo 전체가 잠기기 때문이다). `verify-host.sh`가 선언과 실제를 대조한다.
+  이 호스트는 입주 앱과 공유하므로 sudo는 `/srv/<앱>`의 비밀까지 여는 선택이다.
 - `04-orca-server.sh`가 `config.env`(서버에서는 `host.env`)의 `ORCA_SERVICE_PASSWORD`로 계정
   비밀번호를 맞춘다. 값은 커밋하지 않으며 비어 있으면 계정을 잠긴 채 둔다. 쓰임새는
   `su - orca` 하나뿐이다. 드롭인이 이 계정의 SSH 비밀번호 인증을 끄므로 원격 로그인 경로는

@@ -28,6 +28,12 @@ Server/Web Client는 Beta이므로 서버를 공개 인터넷에 직접 노출�
 80/443을 열고(앱 내부 포트는 열지 않는다), 앱의 영속 데이터는 일일 자동 스냅샷이 함께 담는다.
 현재 입주 앱은 `stock_chatbot` 하나이며 그 운영 기준은 해당 저장소의 `infra/`에 있다.
 
+**AWS 자원을 만드는 Terraform은 이 저장소 하나뿐이다.** 입주 앱 저장소는 같은 자원을
+선언하지 않고(Lightsail 공개 포트 API는 규칙 전체를 교체하므로 나중에 apply한 쪽이 상대의
+규칙을 지운다), 대신 호스트가 제공하는 계약 값 — 리전·AZ·자동 스냅샷 시각·공개 웹 여부·
+호스트 타임존(UTC) — 을 읽어 자기 유닛과 cron을 맞춘다. 표와 읽는 법은
+[`terraform/README.md`](terraform/README.md)의 "입주 앱과의 계약"에 있다.
+
 ## 빠른 시작
 
 Windows PowerShell에서 설정 예시를 복사한 뒤 값을 확인한다.
@@ -73,8 +79,16 @@ Orca pairing URL과 Tailscale Serve 주소가 임시 EC2 호스트명(`ip-172-..
 
 `06-vscode-remote.sh`는 `orca` 계정에 로그인 셸과 관리 PC 공개키를 부여해 VS Code가
 에이전트와 **같은 계정**으로 붙게 한다. `ubuntu`로 붙어 `/home/orca/workspace`를 편집하면
-새 파일 소유자가 갈라져 Orca가 쓰지 못하는 경로가 생기기 때문이다. `orca`는 sudo 그룹에
-넣지 않고 SSH 비밀번호 인증도 막는다.
+새 파일 소유자가 갈라져 Orca가 쓰지 못하는 경로가 생기기 때문이다. SSH는 이 계정의
+비밀번호 인증을 막고 공개키만 받는다.
+
+`orca`는 기본으로 sudo를 쓸 수 있다. 이 계정으로 붙은 사람과 에이전트가 호스트를 직접
+관리하기 때문이고, headless 에이전트는 비밀번호를 입력할 방법이 없어 기본값이
+`ORCA_SERVICE_SUDO=nopasswd`다(`scripts/config.env`). 정책은 `04-orca-server.sh`가 매 실행
+그대로 맞추고 `verify-host.sh`가 선언과 실제가 같은지 본다. **이 호스트는 입주 앱과
+공유하므로, sudo는 `/srv/<앱>/.env`를 포함한 호스트 전체를 이 계정에 여는 것과 같다.**
+원격에서 이 계정을 잡히면 그대로 root가 되므로, 열고 싶지 않으면 `password`나 `off`로
+바꾼다.
 
 계정에 로컬 비밀번호를 줄 수 있다. `scripts/config.env`의 `ORCA_SERVICE_PASSWORD`에 적으면
 `04-orca-server.sh`가 실행마다 그 값으로 맞추고, 비워 두면 계정을 잠긴 상태로 남긴다. 값은

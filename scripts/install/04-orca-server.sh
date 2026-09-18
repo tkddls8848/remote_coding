@@ -96,6 +96,67 @@ else
     warn "ORCA_SERVICE_PASSWORD 가 비어 있다 — 계정을 잠긴 상태로 둔다."
 fi
 
+# --- sudo 권한 --------------------------------------------------------------
+# 이 계정으로 붙은 사람과 에이전트가 호스트를 직접 관리할 수 있게 할지 결정한다.
+# 정책은 config.env 의 ORCA_SERVICE_SUDO 하나로 선언하고 매 실행 그 상태로 맞춘다.
+# 그룹 변경은 새로 여는 세션부터 적용된다 (이미 붙어 있는 셸은 다시 로그인해야 한다).
+sudoers_file="/etc/sudoers.d/60-${ORCA_SERVICE_USER}-sudo"
+in_sudo_group() { id -nG "$ORCA_SERVICE_USER" | tr ' ' '\n' | grep -qx -e sudo -e admin; }
+
+case "$ORCA_SERVICE_SUDO" in
+    nopasswd|password)
+        if in_sudo_group; then
+            ok "$ORCA_SERVICE_USER 는 이미 sudo 그룹"
+        else
+            say "$ORCA_SERVICE_USER 를 sudo 그룹에 넣는다"
+            sudo usermod -aG sudo "$ORCA_SERVICE_USER"
+            ok "sudo 그룹 추가 (새 로그인부터 적용)"
+        fi
+        ;;
+esac
+
+case "$ORCA_SERVICE_SUDO" in
+    nopasswd)
+        # sudoers 드롭인은 문법 오류 하나로 호스트의 sudo 전체를 잠근다.
+        # 임시 파일에서 visudo 검사를 통과한 것만 설치한다.
+        tmp_sudoers="$(mktemp)"
+        {
+            echo "# install/04-orca-server.sh 가 생성 (ORCA_SERVICE_SUDO=nopasswd)."
+            echo "# headless 에이전트는 비밀번호를 입력할 수 없어 NOPASSWD 로 둔다."
+            echo "$ORCA_SERVICE_USER ALL=(ALL) NOPASSWD:ALL"
+        } > "$tmp_sudoers"
+        if sudo visudo -c -q -f "$tmp_sudoers"; then
+            sudo install -o root -g root -m 0440 "$tmp_sudoers" "$sudoers_file"
+            rm -f "$tmp_sudoers"
+            ok "sudo 비밀번호 없이 허용 ($sudoers_file)"
+        else
+            rm -f "$tmp_sudoers"
+            die "sudoers 드롭인 문법 검사에 실패했다. 설치하지 않았다."
+        fi
+        ;;
+    password)
+        sudo rm -f "$sudoers_file"
+        if [ -n "$ORCA_SERVICE_PASSWORD" ]; then
+            ok "sudo 는 $ORCA_SERVICE_USER 의 비밀번호를 물어본다"
+        else
+            warn "ORCA_SERVICE_PASSWORD 가 비어 있어 sudo 가 물어보는 비밀번호를 댈 수 없다."
+            warn "비밀번호를 정하거나 ORCA_SERVICE_SUDO=nopasswd 로 둘 것."
+        fi
+        ;;
+    off)
+        sudo rm -f "$sudoers_file"
+        if in_sudo_group; then
+            say "$ORCA_SERVICE_USER 를 sudo 그룹에서 뺀다"
+            sudo deluser "$ORCA_SERVICE_USER" sudo >/dev/null 2>&1 || true
+            sudo deluser "$ORCA_SERVICE_USER" admin >/dev/null 2>&1 || true
+        fi
+        ok "$ORCA_SERVICE_USER 에 sudo 권한 없음"
+        ;;
+    *)
+        die "ORCA_SERVICE_SUDO 는 nopasswd | password | off 중 하나여야 한다 (현재: $ORCA_SERVICE_SUDO)"
+        ;;
+esac
+
 sudo install -d -o root -g root -m 0755 /opt/orca
 sudo install -d -o "$ORCA_SERVICE_USER" -g "$ORCA_SERVICE_GROUP" -m 0750 \
     "/home/$ORCA_SERVICE_USER/workspace"
