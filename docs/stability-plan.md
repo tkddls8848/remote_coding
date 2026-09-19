@@ -1,6 +1,6 @@
 # 안정적 서비스 운영을 위한 개선 계획
 
-> 초판: 2026-08-24 · **개정: 2026-09-19 (2판)**  
+> 초판: 2026-08-24 · 개정: 2026-09-19 (2판) · **적용: 2026-09-19 (13절)**  
 > 대상: `remote_coding` 저장소 기반 AWS Lightsail + Orca 원격 개발 환경  
 > 범위: 현행 코드 분석을 통해 발견된 안정성·보안·운영 갭과 개선 방향
 
@@ -533,6 +533,10 @@ OOMPolicy=stop
 
 ## 9. 개선 우선순위 요약
 
+> **상태(2026-09-19):** 아래 항목은 전부 저장소 코드로 반영됐다. 무엇이 어디에 들어갔고
+> 무엇을 계획과 다르게 했는지는 **13절**에 있다. 단, 코드가 선언하는 상태가 바뀌었을 뿐
+> 서버에는 아직 적용되지 않았다 (13.4 의 순서로 사람이 실행한다).
+
 | 우선순위 | 항목 | 절 | 난이도 | 효과 |
 |---|---|---|---|---|
 | **P0** | **`REPOS=all` 에서 포크 배제 / 대상 저장소 명시** | 6.2 | **낮음** | **신뢰경계 확보 — 경로 A 차단** |
@@ -563,6 +567,9 @@ OOMPolicy=stop
 ## 10. 복구 체크리스트 (초안)
 
 서비스 복구 시 다음 순서를 따른다.
+
+> **상태(2026-09-19):** 이 체크리스트는 `docs/lightsail-plan.md` 8.1 로 옮겨 운영 문서에
+> 합쳤고, 분기 드릴 절차를 8.2 에 추가했다. **드릴 자체는 아직 실행하지 않았다** (13.3).
 
 ### 10.1 orca-serve.service 장애
 
@@ -633,6 +640,9 @@ sudo journalctl -k | grep -i oom
 ## 11. 단기 적용 가능 최소 조치
 
 현재 코드를 크게 변경하지 않고 즉시 적용할 수 있는 항목이다.
+
+> **상태(2026-09-19):** 아래는 전부 반영됐으나 **cron 대신 systemd timer 로** 넣었다
+> (`install/01-host-base.sh`, `install/07-monitoring.sh`). 이유는 13.2 참조.
 
 ### 11.1 journald 로그 크기 제한
 
@@ -708,11 +718,115 @@ Persistent=true
 
 ### 12.3 2판이 다루지 않은 것
 
-- **실제 적용은 하지 않았다.** 이 문서는 계획이며 코드 변경을 포함하지 않는다.
-  9절 P0 항목부터 별도 작업으로 진행한다.
+- **실제 적용은 하지 않았다.** 2판은 계획이며 코드 변경을 포함하지 않았다.
+  → 13절 참조. 2026-09-19 에 저장소 코드로 반영했다.
 - **에이전트 자동 승인 설정을 확인하지 못했다.** Orca·Claude Code·Codex 각각의 승인 정책은
   저장소 코드가 아니라 각 도구의 런타임 설정에 있다 (6.2-3). 서버에서 직접 확인이 필요하다.
+  → 여전히 미확인. 13.3 참조.
 - **복구 드릴은 여전히 미검증이다** (7.2). 2판도 이 항목의 상태를 바꾸지 못했다.
+  → 절차는 `docs/lightsail-plan.md` 8.2 로 문서화했으나 **실행은 하지 않았다.** 13.3 참조.
+
+---
+
+## 13. 적용 내역 (2026-09-19)
+
+9절 우선순위표의 항목을 **저장소 코드로** 반영했다. 코드가 선언하는 최종 상태만 바뀌었을 뿐
+**서버에는 아직 적용되지 않았다** — 반영하려면 `util/sync-host.sh` 로 스크립트를 보내고
+`install/04`·`05`·`06`·`07` 을 다시 돌려야 한다 (13.4).
+
+### 13.1 반영된 항목
+
+| 절 | 항목 | 어디에 |
+|---|---|---|
+| 3.1 | S3 remote backend (`use_lockfile`, DynamoDB 없음) | `terraform/backend.tf.example`, `versions.tf` 주석, `terraform/README.md`, `.gitignore` |
+| 3.2 | `admin_cidrs` 목록 변수, checkip 실패 시 재시도·검증·안내 | `terraform/variables.tf`, `firewall.tf`, `terraform.tfvars.example` |
+| 3.3 | 스냅샷 7일 보존·수동 스냅샷 명명 규칙·비용 확인 절차 | `terraform/README.md` "스냅샷 보존과 비용" |
+| 4.1 | `retry N CMD` 헬퍼와 적용 (apt, nodesource, npm, gh, git clone/fetch) | `scripts/util/lib.sh`, `install/01`·`02`·`05` |
+| 4.2 | 에이전트 CLI 버전 고정·설치됨 감지, 기존 클론은 `git fetch` | `install/02`, `install/05` |
+| 4.3 | SHA256 검증(설정값 → 릴리스 체크섬 파일 → 이전 설치와 대조), 최소 크기, `/opt/orca/CHECKSUM` | `install/04` |
+| 5.1 | systemd `OnFailure` 훅 + 5분 주기 상태 확인 + 웹훅 알림 경로 | `install/04`(`OnFailure=`), `install/07` |
+| 5.2 | 디스크 임계 알림, journald `SystemMaxUse`, workspace 증가 추적 | `install/01`, `install/07` |
+| 5.3 | `MemoryHigh`/`MemoryMax`/`OOMPolicy=stop` **먼저**, 그다음 sysstat·스왑·OOM 감시 | `install/04`, `install/07` |
+| 6.1 | `whitelist` sudo 모드 신설, sudo I/O 로깅 기본 on | `lib.sh`, `install/04`, `config.example.env` |
+| 6.2 | `REPOS=all` 에서 포크·보관 기본 제외(`--source --no-archived`), 명시 목록 권장 | `install/05`, `config.example.env`, README |
+| 6.3 | `orca` 전용 SSH 키 필수화, 키 중복 검사, 교체 절차 문서화 | `install/06`, `verify-host.sh`, `docs/lightsail-plan.md` 4.3 |
+| 6.4 | 유닛 하드닝 (sudo 정책에 따라 단계적), 메모리 상한 | `install/04` |
+| 6.5 | `ufw logging low` — 반출 탐지 | `install/04` |
+| 6.6 | auditd 최소 규칙, SSH 로그인 알림, `verify-host.sh` 드리프트 검사 | `install/07`, `install/04`·`06`(기준값), `verify-host.sh` |
+| 6.7 | 토큰 유효성 실제 API 호출 + 주간 점검, Fine-grained PAT 안내 | `verify-host.sh`, `install/07`, `config.example.env` |
+| 6.8 | 페어링 URL 보관·재발급 절차 | `docs/lightsail-plan.md` 5절 |
+| 6.9 | 비밀번호 최소 길이 검증, `openssl rand` 예시 | `install/04`, `config.example.env` |
+| 7.1 | `util/backup-orca.sh` (+ KMS·버킷 통제 안내, 자격증명 기본 제외) | `scripts/util/backup-orca.sh` |
+| 7.2 | 복구 체크리스트와 분기 드릴 절차 | `docs/lightsail-plan.md` 8.1~8.2 |
+| 8.1 | `util/check-orca-update.sh` + 주간 타이머 | `scripts/util/check-orca-update.sh`, `install/07` |
+| 8.2 | `util/update-admin-ip.sh` | `scripts/util/update-admin-ip.sh` |
+| 11 | journald 한도, 장애·디스크 감시, `verify-host` 정기 실행 — cron 대신 systemd timer | `install/01`, `install/07` |
+
+### 13.2 계획과 다르게 적용한 것
+
+**6.1-1 기본값을 `off` 로 바꾸지 않았다.** 계획은 `lib.sh` 의 `ORCA_SERVICE_SUDO` 기본을
+`off` 로 두라고 했으나 `nopasswd` 를 유지했다. 기본값을 바꾸면 모르고 재실행한 호스트에서
+에이전트가 sudo 를 잃는다 — 이 저장소의 스크립트는 매 실행 선언 상태로 "맞추기" 때문에
+설정을 옮기지 않은 채 `04` 를 돌리면 곧바로 운영이 막힌다. 대신 `whitelist` 모드를 새로
+만들어 전면 허용과 전면 차단 사이의 단계를 두었고, sudo I/O 로깅(P0)은 기본 on 이다.
+`nopasswd` 로 설치하면 스크립트와 `verify-host.sh` 양쪽이 잔여 위험을 경고로 남긴다.
+
+**6.4 하드닝을 sudo 정책에 묶었다.** 계획의 유닛 지시어를 그대로 넣으면 현행 구성이 깨진다.
+`NoNewPrivileges` 는 setuid 를 막아 sudo 경로 자체를 닫고, `ProtectSystem` / `ProtectHome` /
+`ProtectKernelTunables` 는 유닛의 마운트 네임스페이스에 걸리므로 그 안에서 `sudo` 로 띄운
+자식까지 함께 묶인다 — 에이전트가 `apt` 나 `/etc` 를 건드려야 하는 구성에서는 운영이 막힌다.
+그래서 이 계열은 `ORCA_SERVICE_SUDO=off` 일 때만 켜고, 그 외에는 충돌하지 않는 항목
+(`RestrictSUIDSGID`, `RestrictRealtime`, `ProtectControlGroups`, 메모리 상한)만 적용한다.
+계획 6.4 의 "순서를 지키지 않으면 서비스가 아니라 운영이 막힌다" 를 코드로 강제한 것이다.
+
+**11 절의 cron 을 systemd timer 로 바꿨다.** 계획은 `/etc/cron.d/` 예시를 들었으나 이 호스트는
+`HOST_TIMEZONE=UTC` 계약과 입주 앱의 `cron.d` 를 이미 쓰고 있다. 감시 유닛을 timer 로 두면
+`Persistent=true` 로 다운타임 중 놓친 실행을 따라잡고, 상태·로그가 저널 한 곳에 모이며,
+입주 앱의 cron 과 섞이지 않는다. 결과는 같고 운영 면이 하나 줄어든다.
+
+**3.1 backend 를 파일로 켜지 않았다.** `backend "s3"` 블록을 바로 넣으면 버킷이 없는 상태에서
+`terraform init` 이 실패해 현행 로컬 state 운영이 막힌다. `backend.tf.example` 로 두고
+`init -migrate-state` 절차를 문서화했다 — 버킷 생성이 사람의 결정이기 때문이다.
+
+### 13.3 이번에도 적용하지 못한 것
+
+- **서버 반영은 하지 않았다.** 코드만 바뀌었다. 13.4 의 순서로 사람이 실행해야 한다.
+- **AWS 쪽 자원은 만들지 않았다.** state 버킷(3.1), 백업 버킷과 KMS 키(7.1), Cost Explorer
+  예산 알림(3.3)은 계정 안에서 만들어야 하고 비용이 따른다.
+- **에이전트 자동 승인 설정은 여전히 미확인이다** (6.2-3). Orca·Claude Code·Codex 의 런타임
+  설정이라 이 저장소에서 선언할 수 없다. 서버에서 직접 확인한다.
+- **복구 드릴은 미실행이다** (7.2). 절차만 `docs/lightsail-plan.md` 8.2 에 적었다.
+  실행해 보기 전까지 검증된 것이 아니다.
+- **sudo 화이트리스트의 실제 목록은 추정값이다** (6.1-2). `lib.sh` 의 기본 목록은 자기 유닛
+  제어와 `apt-get` 뿐이다. `nopasswd` + I/O 로깅으로 며칠 돌려 `sudoreplay -l` 로 관찰한 뒤
+  목록을 확정하고 `whitelist` 로 넘어가는 순서를 권장한다.
+- **egress 프록시는 검토하지 않았다** (6.5-3). `ufw logging` 까지만 했다. 계획대로 6.1·6.2 를
+  처리한 다음 판단한다.
+
+### 13.4 서버 반영 순서
+
+```bash
+# 관리 PC — 새 설정값을 먼저 정한다
+#   ORCA_SSH_PUBLIC_KEY   (필수: 없으면 06 이 중단한다)
+#   ALERT_WEBHOOK         (비우면 알림이 로컬 로그에만 남는다)
+#   REPOS                 (작업 대상만 명시하는 것을 권장)
+./scripts/util/sync-host.sh
+
+# 서버 (ubuntu)
+cd ~/remote-lightsail-scripts
+./install/01-host-base.sh      # journald 한도
+./install/04-orca-server.sh    # sudo 로깅, 체크섬, 유닛 하드닝, 기준값
+./install/05-repos.sh          # 포크 제외 재열거
+./install/06-vscode-remote.sh  # 전용 키 등록
+./install/07-monitoring.sh     # 알림·감시·감사
+./util/verify-host.sh
+```
+
+`04` 를 돌리면 새 SHA256 을 출력한다. `config.env` 의 `ORCA_SHA256` 에 옮겨 적고
+`sync-host.sh` 를 한 번 더 돌리면 다음 설치부터 검증된다.
+
+`06` 은 `ORCA_SSH_PUBLIC_KEY` 가 없으면 중단한다. 기존 호스트에서 `ubuntu` 키로 붙어 있었다면
+**새 키로 접속되는 것을 확인한 뒤** 옛 키를 지운다 (`docs/lightsail-plan.md` 4.3 "SSH 키 교체").
 
 ---
 

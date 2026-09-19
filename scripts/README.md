@@ -15,6 +15,7 @@ sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
 
 ./install/05-repos.sh
 ./install/06-vscode-remote.sh
+./install/07-monitoring.sh
 ./util/verify-host.sh
 sudo ./util/show-orca-access.sh
 ```
@@ -23,23 +24,44 @@ sudo ./util/show-orca-access.sh
 - `02-agent-cli.sh`: Codex CLI와 Claude Code 전역 설치
 - `03-private-network.sh`: Tailscale 공식 APT 저장소, 안정적인 MagicDNS 이름, 최초 브라우저 인증
 - `04-orca-server.sh`: 고정 버전 AppImage, `orca` 전용 계정, `orca-serve.service`, Tailscale Serve HTTPS.
+  내려받은 바이너리는 ELF/아키텍처 확인에 더해 **SHA256 과 최소 크기를 검증**한다
+  (`ORCA_SHA256`, 릴리스 체크섬 파일, `ORCA_MIN_BYTES`). 검증한 값은 `/opt/orca/CHECKSUM` 에
+  남아 `verify-host.sh` 의 드리프트 검사가 다시 쓴다.
   계정 비밀번호는 `config.env`의 `ORCA_SERVICE_PASSWORD`로 매 실행 맞추고, 비어 있으면 계정을
-  잠긴 채 둔다. `su - orca` 전용이고 SSH는 06 단계가 이 계정의 비밀번호 인증을 끄므로 원격
-  로그인은 키로만 한다. sudo 권한도 이 단계가 `ORCA_SERVICE_SUDO`(`nopasswd` 기본 /
-  `password` / `off`)대로 맞춘다 — 입주 앱과 공유하는 호스트이므로 sudo는 `/srv/<앱>`의
-  비밀까지 여는 선택이라는 점을 알고 정한다.
+  잠긴 채 둔다(최소 길이는 `ORCA_SERVICE_PASSWORD_MIN_LEN`). `su - orca` 전용이고 SSH는 06
+  단계가 이 계정의 비밀번호 인증을 끄므로 원격 로그인은 키로만 한다.
+  sudo 권한도 이 단계가 `ORCA_SERVICE_SUDO`(`nopasswd` 기본 / `whitelist` / `password` / `off`)
+  대로 맞춘다 — 입주 앱과 공유하는 호스트이므로 sudo는 `/srv/<앱>`의 비밀까지 여는 선택이라는
+  점을 알고 정한다. `ORCA_SUDO_LOG=on`(기본)이면 sudo I/O 로깅을 켜서 root 실행 내역을
+  `sudoreplay` 로 재생할 수 있게 남긴다.
+  유닛에는 `MemoryHigh`/`MemoryMax`/`OOMPolicy=stop` 이 걸린다 — 커널 OOM killer 가 임의의
+  프로세스를 고르게 두는 대신 한도를 넘은 이 서비스만 멈추게 한다. `NoNewPrivileges` 와
+  `ProtectSystem` 계열은 sudo 경로를 막으므로 `ORCA_SERVICE_SUDO=off` 일 때만 켜진다.
 - `05-repos.sh`: `/home/orca/workspace`에 Orca 계정으로 저장소 클론.
-  `REPOS=all`(기본)이면 `GITHUB_OWNER`의 저장소를 `gh`로 열거해 **전부** 가져온다 —
-  GitHub 프로필의 Repositories 탭과 같은 범위로 프라이빗·포크·보관됨을 모두 포함한다.
-  토큰에 `repo` 스코프가 필요하며 없으면 중단한다. 일부만 원하면 `REPOS`에 이름을 공백으로
-  나열하고, 전체에서 몇 개만 빼려면 `REPOS_EXCLUDE`를 쓴다. 새 저장소를 만든 뒤 다시 돌리면
-  그것만 추가된다.
-- `06-vscode-remote.sh`: `orca` 계정 SSH 로그인(키 전용), sshd 드롭인, inotify 한도 — VS Code Remote-SSH
+  **여기 등록되는 저장소가 이 호스트의 신뢰경계다** — 에이전트는 그 코드의 README·설정·빌드
+  스크립트를 읽고 명령을 실행하며, 의존성 설치 한 번이 곧 임의 코드 실행이다. 그래서 실제
+  작업 대상만 `REPOS`에 공백으로 나열하는 것을 권장한다(`REPOS="gong-go homepage"`).
+  `REPOS=all`이면 `GITHUB_OWNER`의 저장소를 `gh`로 열거하되 **포크와 보관됨은 기본으로 뺀다**
+  (`REPOS_INCLUDE_FORKS=1` / `REPOS_INCLUDE_ARCHIVED=1`로 다시 넣을 수 있다). 포크는 제3자가
+  쓴 코드다. 토큰에 `repo` 스코프가 필요하며 없으면 중단한다. 몇 개만 빼려면 `REPOS_EXCLUDE`를
+  쓴다. 이미 클론된 저장소는 다시 클론하지 않고 `git fetch`만 한다.
+- `06-vscode-remote.sh`: `orca` 계정 SSH 로그인(키 전용), sshd 드롭인, inotify 한도 — VS Code Remote-SSH.
+  공개키는 **`orca` 전용 키**(`ORCA_SSH_PUBLIC_KEY`)를 쓴다. `ubuntu`의 키를 복사하면 키 하나가
+  두 계정을 동시에 열고 `orca`는 sudo를 가지므로 키 탈취가 곧 호스트 root다. 옛 동작이 필요하면
+  `ORCA_SSH_REUSE_ADMIN_KEY=1`로 명시한다. 스크립트는 두 계정의 키가 겹치는지도 확인한다.
+- `07-monitoring.sh`: 장애 알림(systemd `OnFailure` + 5분 주기 확인), 디스크·스왑·OOM 감시,
+  `auditd` 최소 규칙, SSH 로그인 알림, 토큰 유효성 주간 점검, Orca 새 버전 주간 확인,
+  `verify-host.sh` 일일 실행. 알림은 `ALERT_WEBHOOK`으로 나가고 비어 있으면
+  `/var/log/orca-alert.log`에만 남는다.
 
 `config.env`는 로컬 전용이며 `sync-host.sh`가 필요한 값만 서버의 `host.env`(`0600`)로
-복사한다. Tailscale·Codex·GitHub 토큰은 이 파일에 넣지 않는다. 여기 들어가는 유일한
-자격증명은 `ORCA_SERVICE_PASSWORD`이며, 예시 파일에는 값을 두지 않는다 — 원격 로그인이
-아니라 호스트 안 `su` 전용이다.
+복사한다. Tailscale·Codex·GitHub 토큰은 이 파일에 넣지 않는다. 여기 들어가는 자격증명은
+`ORCA_SERVICE_PASSWORD`와 `ALERT_WEBHOOK`뿐이며, 예시 파일에는 값을 두지 않는다 —
+비밀번호는 원격 로그인이 아니라 호스트 안 `su` 전용이고, 웹훅은 서버에서
+`/etc/orca/alert.env`(0600 root)로 들어간다.
+
+`ORCA_SSH_PUBLIC_KEY`에 파일 경로를 적으면 `sync-host.sh`가 내용으로 풀어 보낸다(서버는
+관리 PC의 파일을 볼 수 없다).
 
 `HOST_TIMEZONE`은 입주 앱과의 계약 값이다. 입주 앱의 `cron.d`는 타임존을 선언할 수 없어
 호스트 설정을 그대로 따르고, Lightsail 자동 스냅샷 시각은 UTC 정시다. 두 시각을 같은
@@ -53,6 +75,23 @@ sudo ./util/show-orca-access.sh
 
 `util/provision-host.sh`는 Terraform apply, SSH 대기, 스크립트 동기화를 수행한다. 실제 계정
 로그인은 사람의 브라우저 승인이 필요하므로 서버에서 마무리한다.
+
+| 스크립트 | 실행 위치 | 하는 일 |
+|---|---|---|
+| `provision-host.sh` | 로컬 | Terraform apply → SSH 대기 → 스크립트 복사 |
+| `sync-host.sh` | 로컬 | `install/`·`util/`·`host.env`(0600)를 서버로 복사 |
+| `update-admin-ip.sh` | 로컬 | 현재 공인 IP 감지 → `terraform.tfvars` 의 `my_ip` 갱신 → `apply` |
+| `verify-host.sh` | 서버 | 서비스·사설망·CLI·보안 통제·드리프트 전체 점검 |
+| `backup-orca.sh` | 서버 | Orca 프로필 아카이브 → (선택) S3 업로드 |
+| `check-orca-update.sh` | 양쪽 | 설치된 버전과 최신 릴리스 비교 |
+| `show-orca-access.sh` | 서버 | 브라우저 페어링 URL 조회 |
+| `diagnose-web-client.sh` | 서버 | 빈 화면 진단 |
+
+`backup-orca.sh` 는 기본적으로 **자격증명을 담지 않는다**. `/home/orca/.codex` 와 gh 토큰을
+S3 로 복사하면 자격증명의 사본이 하나 더 생기고 그 버킷이 새로운 침해 대상이 된다.
+담으려면 `BACKUP_INCLUDE_CREDENTIALS=1` 과 함께 `BACKUP_KMS_KEY_ID`(SSE-KMS)·버킷 정책
+(PutObject 만 허용)·Object Lock 을 같이 건다. 대안은 백업하지 않고 재발급하는 것이다 —
+`codex login` 과 `gh auth login` 은 몇 분이면 끝난다.
 
 ```powershell
 & "C:\Program Files\Git\bin\bash.exe" ./scripts/util/provision-host.sh

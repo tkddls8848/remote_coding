@@ -72,6 +72,40 @@ variable "my_ip" {
   description = "SSH 를 허용할 내 공인 IP. 비우면 checkip.amazonaws.com 으로 자동 감지."
   type        = string
   default     = ""
+
+  validation {
+    condition     = var.my_ip == "" || can(regex("^[0-9]{1,3}(\\.[0-9]{1,3}){3}$", var.my_ip))
+    error_message = "my_ip 는 비우거나 203.0.113.10 형식의 IPv4 주소여야 한다."
+  }
+}
+
+variable "admin_cidrs" {
+  description = <<-EOT
+    SSH(22) 를 허용할 CIDR 목록. 비우면 my_ip 하나로 /32 규칙을 만든다.
+
+    단일 /32 만 두면 ISP DHCP·VPN 전환·출장으로 IP 가 바뀌는 순간 잠긴다. 장애가
+    난 상태에서 IP 까지 바뀌어 있으면 긴급 접속 경로가 없다
+    (docs/stability-plan.md 3.2). 집·사무실처럼 고정된 곳이 둘 이상이면 여기에
+    함께 적는다:
+
+      admin_cidrs = ["203.0.113.10/32", "198.51.100.0/29"]
+
+    근본 해결은 Tailscale SSH 다 — tailnet 안에서는 공인 방화벽과 무관하게 붙는다.
+  EOT
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for c in var.admin_cidrs : can(regex("^[0-9]{1,3}(\\.[0-9]{1,3}){3}/[0-9]{1,2}$", c))
+    ])
+    error_message = "admin_cidrs 의 각 항목은 203.0.113.10/32 형식이어야 한다."
+  }
+
+  validation {
+    condition     = !contains(var.admin_cidrs, "0.0.0.0/0")
+    error_message = "admin_cidrs 에 0.0.0.0/0 은 둘 수 없다. SSH 를 인터넷 전체에 여는 것이다."
+  }
 }
 
 variable "enable_public_web" {

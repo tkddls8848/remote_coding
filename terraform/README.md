@@ -54,13 +54,72 @@ AutoSnapshot 애드온에는 `lightsail:EnableAddOn` 이 필요하다. 이 권�
 호스트 타임존이 UTC 이므로 앱의 `cron.d` 시각도 UTC 로 읽힌다 — 타임존을 선언할 수 있는
 systemd timer 와 달리 cron 은 호스트 설정을 그대로 따른다.
 
-공인 방화벽의 기본 의도 상태는 TCP 22 하나이며 현재 관리자 공인 IP `/32`에만 허용된다.
-`my_ip`를 비우면 apply 시 `checkip.amazonaws.com`에서 감지한다. Orca TCP 6768은 Tailscale
-사설 경로로만 사용하므로 Terraform 방화벽에 추가하지 않는다. 입주 앱의 내부 포트도
-루프백 전용이다. 공개 DNS와 리버스 프록시가 준비된 경우에만 `enable_public_web=true`로 80/443을 연다.
+공인 방화벽의 기본 의도 상태는 TCP 22 하나다. 허용 대상은 다음 순서로 정해진다.
+
+1. `admin_cidrs` (목록) — 값이 있으면 이것만 쓴다
+2. `my_ip` (단일 IP → `/32`)
+3. 둘 다 비면 `checkip.amazonaws.com` 으로 자동 감지 (3회 재시도, IPv4 형식 검증)
+
+**단일 `/32` 하나만 두면 IP 가 바뀌는 순간 잠긴다.** ISP DHCP, VPN 전환, 출장이면 그렇고,
+장애가 난 상태에서 IP 까지 바뀌어 있으면 긴급 접속 경로가 없다. 고정된 위치가 둘 이상이면
+`admin_cidrs` 에 함께 적고, 근본 경로로는 Tailscale SSH 를 확보해 둔다 — tailnet 안에서는
+공인 방화벽과 무관하게 붙는다 (`docs/stability-plan.md` 3.2).
+
+IP 가 바뀌었을 때는 `scripts/util/update-admin-ip.sh` 가 현재 공인 IP 를 감지해
+`terraform.tfvars` 의 `my_ip` 를 갱신하고 `apply` 까지 한다.
+
+Orca TCP 6768은 Tailscale 사설 경로로만 사용하므로 Terraform 방화벽에 추가하지 않는다.
+입주 앱의 내부 포트도 루프백 전용이다. 공개 DNS와 리버스 프록시가 준비된 경우에만
+`enable_public_web=true`로 80/443을 연다.
 
 영속 운영 데이터 보호를 위해 `enable_auto_snapshot=true`가 기본이며, 매일 19:00 UTC
 (04:00 KST/JST)에 Lightsail 자동 스냅샷을 시작한다.
+
+### 스냅샷 보존과 비용
+
+Lightsail 자동 스냅샷은 **최근 7일치만 보관**하고 그보다 오래된 것은 자동으로 지워진다.
+따라서 자동 스냅샷만으로는 7일 넘게 지난 시점으로 돌아갈 수 없다.
+
+- 월 1회 수동 스냅샷을 만들고 이름 규칙을 지킨다: `orca-host-YYYYMMDD-manual`
+
+  ```powershell
+  aws lightsail create-instance-snapshot --region ap-northeast-1 `
+    --instance-name orca-host-tokyo `
+    --instance-snapshot-name "orca-host-$(Get-Date -Format yyyyMMdd)-manual"
+  ```
+
+- 업그레이드 전에도 같은 규칙으로 하나 더 만든다 (`-preupgrade` 접미사).
+- 수동 스냅샷은 지울 때까지 남으므로 비용이 누적된다. 분기 1회 목록을 확인해 정리한다:
+
+  ```powershell
+  aws lightsail get-instance-snapshots --region ap-northeast-1 `
+    --query "instanceSnapshots[].{name:name,created:createdAt,gb:sizeInGb}" --output table
+  ```
+
+- AWS Cost Explorer 에 월 예산 알림을 걸어 둔다 (Billing → Budgets, 이메일 알림).
+
+복구 시 어느 스냅샷을 쓸지는 `docs/lightsail-plan.md` 8절의 복구 절차를 따른다.
+
+## Remote backend (state)
+
+기본값은 로컬 `terraform.tfstate` 다. 이 파일에는 SSH 공개키·IP·리소스 ID 가 들어 있고,
+관리 PC 를 잃거나 초기화하면 인프라 상태도 함께 사라진다. 두 곳에서 동시에 `apply` 하면
+state 가 충돌해 리소스가 중복 생성된다 (`docs/stability-plan.md` 3.1).
+
+S3 로 옮기려면 `backend.tf.example` 을 `backend.tf` 로 복사해 버킷 이름을 채운 뒤 한 번
+마이그레이션한다.
+
+```powershell
+Copy-Item .	erraformackend.tf.example .	erraformackend.tf
+terraform -chdir=terraform init -migrate-state
+```
+
+잠금은 S3 네이티브 `use_lockfile = true` 로 한다 — **DynamoDB 테이블은 필요 없다.**
+다만 실행 환경의 Terraform 이 1.10 이상이어야 한다(`terraform version`). 1.10 미만을
+써야 하면 `use_lockfile` 대신 `dynamodb_table` 을 둔다.
+
+마이그레이션이 끝나면 로컬 `terraform.tfstate*` 를 지운다. `.gitignore` 에 이미 들어 있지만
+파일 자체에 민감 정보가 남아 있다.
 
 `phase=build|final`은 기존 state 호환성을 위해 유지하며 현재 두 값의 방화벽 결과는 같다.
 

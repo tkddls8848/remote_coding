@@ -32,17 +32,54 @@ cat > "$tmp" <<TXT
 REPOS="${REPOS:-all}"
 REPOS_EXCLUDE="${REPOS_EXCLUDE:-}"
 REPOS_LIMIT="${REPOS_LIMIT:-300}"
+REPOS_INCLUDE_FORKS="${REPOS_INCLUDE_FORKS:-0}"
+REPOS_INCLUDE_ARCHIVED="${REPOS_INCLUDE_ARCHIVED:-0}"
 GITHUB_OWNER="${GITHUB_OWNER:-}"
 ORCA_VERSION="${ORCA_VERSION:-v1.4.188}"
 ORCA_PORT="${ORCA_PORT:-6768}"
 ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-orca}"
 ORCA_SERVICE_SUDO="${ORCA_SERVICE_SUDO:-nopasswd}"
+ORCA_SUDO_LOG="${ORCA_SUDO_LOG:-on}"
+ORCA_SUDO_LOG_DIR="${ORCA_SUDO_LOG_DIR:-/var/log/sudo-io}"
+ORCA_SERVICE_PASSWORD_MIN_LEN="${ORCA_SERVICE_PASSWORD_MIN_LEN:-16}"
+ORCA_MEMORY_HIGH="${ORCA_MEMORY_HIGH:-2G}"
+ORCA_MEMORY_MAX="${ORCA_MEMORY_MAX:-2800M}"
+ORCA_SHA256="${ORCA_SHA256:-}"
+ORCA_REQUIRE_CHECKSUM="${ORCA_REQUIRE_CHECKSUM:-0}"
+ORCA_MIN_BYTES="${ORCA_MIN_BYTES:-52428800}"
 ORCA_PAIRING_ADDRESS="${ORCA_PAIRING_ADDRESS:-}"
 TAILSCALE_HOSTNAME="${TAILSCALE_HOSTNAME:-}"
 HOST_TIMEZONE="${HOST_TIMEZONE:-UTC}"
+CLAUDE_CODE_VERSION="${CLAUDE_CODE_VERSION:-latest}"
+CODEX_VERSION="${CODEX_VERSION:-latest}"
+ORCA_SSH_REUSE_ADMIN_KEY="${ORCA_SSH_REUSE_ADMIN_KEY:-0}"
+DISK_WARN_PERCENT="${DISK_WARN_PERCENT:-80}"
+SWAP_WARN_PERCENT="${SWAP_WARN_PERCENT:-70}"
+JOURNAL_MAX_USE="${JOURNAL_MAX_USE:-500M}"
+BACKUP_S3_URI="${BACKUP_S3_URI:-}"
+BACKUP_KMS_KEY_ID="${BACKUP_KMS_KEY_ID:-}"
+BACKUP_INCLUDE_CREDENTIALS="${BACKUP_INCLUDE_CREDENTIALS:-0}"
+BACKUP_LOCAL_DIR="${BACKUP_LOCAL_DIR:-/var/backups/orca}"
 TXT
-# 비밀번호에는 셸 메타문자가 들어갈 수 있다. host.env 는 그대로 source 되므로 인용해 쓴다.
-printf 'ORCA_SERVICE_PASSWORD=%q\n' "${ORCA_SERVICE_PASSWORD:-}" >> "$tmp"
+# 아래 값들은 셸 메타문자·줄바꿈·비밀을 담을 수 있다. host.env 는 그대로 source 되므로
+# 인용해서 쓴다.
+printf 'ORCA_SERVICE_PASSWORD=%q\n'  "${ORCA_SERVICE_PASSWORD:-}"  >> "$tmp"
+printf 'ORCA_SUDO_WHITELIST=%q\n'    "${ORCA_SUDO_WHITELIST:-}"    >> "$tmp"
+printf 'ALERT_WEBHOOK=%q\n'          "${ALERT_WEBHOOK:-}"          >> "$tmp"
+# 로컬에서는 파일 경로로 적는 편이 자연스럽지만 서버는 그 파일을 볼 수 없다.
+# 경로면 여기서 내용으로 풀어 보낸다.
+vscode_key="${ORCA_SSH_PUBLIC_KEY:-}"
+if [ -n "$vscode_key" ]; then
+    key_path="${vscode_key/#\~/$HOME}"
+    if [ -f "$key_path" ]; then
+        vscode_key="$(head -1 "$key_path")"
+    fi
+    case "$vscode_key" in
+        ssh-*|ecdsa-*|sk-ssh-*|sk-ecdsa-*) ;;
+        *) die "ORCA_SSH_PUBLIC_KEY 가 OpenSSH 공개키도, 읽을 수 있는 파일 경로도 아니다: $vscode_key" ;;
+    esac
+fi
+printf 'ORCA_SSH_PUBLIC_KEY=%q\n'    "$vscode_key"                 >> "$tmp"
 
 ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'rm -rf ~/remote-lightsail-scripts && mkdir -p ~/remote-lightsail-scripts'
 scp "${SSH_ARGS[@]}" -qr "$SCRIPT_DIR"/install "$SCRIPT_DIR"/util "ubuntu@$STATIC_IP:~/remote-lightsail-scripts/"
@@ -68,6 +105,7 @@ cat <<TXT
   sudo -u orca -H /bin/bash -c 'cd "\$HOME" && exec gh auth login'
   ./install/05-repos.sh
   ./install/06-vscode-remote.sh
+  ./install/07-monitoring.sh
   sudo ./util/show-orca-access.sh
   ./util/verify-host.sh
 TXT

@@ -33,6 +33,10 @@ terraform/*.tfvars
 !terraform/terraform.tfvars.example
 terraform/crash.log
 terraform/crash.*.log
+# remote backend 설정 — 버킷 이름은 배포마다 다르고 공개 리포에 둘 이유가 없다.
+# 템플릿은 backend.tf.example 로 커밋한다 (docs/stability-plan.md 3.1).
+terraform/backend.tf
+!terraform/backend.tf.example
 
 # 에이전트 로컬 설정
 **/.claude

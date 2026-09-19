@@ -60,9 +60,13 @@ cd ~/remote-lightsail-scripts
 sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec codex login --device-auth'
 sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
 
-# 소유 저장소를 전부(프라이빗·포크·보관 포함) /home/orca/workspace 로 가져온다
+# 작업 대상 저장소를 /home/orca/workspace 로 가져온다 (포크·보관은 기본 제외)
 ./install/05-repos.sh
 ./install/06-vscode-remote.sh
+
+# 장애 알림, 자원 감시, 보안 이벤트 감사
+./install/07-monitoring.sh
+
 ./util/verify-host.sh
 sudo ./util/show-orca-access.sh
 ```
@@ -82,13 +86,30 @@ Orca pairing URL과 Tailscale Serve 주소가 임시 EC2 호스트명(`ip-172-..
 새 파일 소유자가 갈라져 Orca가 쓰지 못하는 경로가 생기기 때문이다. SSH는 이 계정의
 비밀번호 인증을 막고 공개키만 받는다.
 
+공개키는 `orca` 전용 키를 쓴다. `scripts/config.env`의 `ORCA_SSH_PUBLIC_KEY`에 적으면
+`sync-host.sh`가 서버로 보내고 `06-vscode-remote.sh`가 그 키만 등록한다.
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/orca_vscode -C "vscode->orca"
+# scripts/config.env: ORCA_SSH_PUBLIC_KEY=~/.ssh/orca_vscode.pub
+```
+
+`ubuntu`의 키를 그대로 복사하지 않는 이유는 `orca`가 sudo를 갖기 때문이다 — 키 하나가 두
+계정을 동시에 열면 `ubuntu` 키 탈취 한 번이 그대로 호스트 root다. 옛 동작이 필요하면
+`ORCA_SSH_REUSE_ADMIN_KEY=1`로 명시하고, `verify-host.sh`가 두 계정의 키가 겹치는지 본다.
+
 `orca`는 기본으로 sudo를 쓸 수 있다. 이 계정으로 붙은 사람과 에이전트가 호스트를 직접
 관리하기 때문이고, headless 에이전트는 비밀번호를 입력할 방법이 없어 기본값이
 `ORCA_SERVICE_SUDO=nopasswd`다(`scripts/config.env`). 정책은 `04-orca-server.sh`가 매 실행
 그대로 맞추고 `verify-host.sh`가 선언과 실제가 같은지 본다. **이 호스트는 입주 앱과
 공유하므로, sudo는 `/srv/<앱>/.env`를 포함한 호스트 전체를 이 계정에 여는 것과 같다.**
-원격에서 이 계정을 잡히면 그대로 root가 되므로, 열고 싶지 않으면 `password`나 `off`로
-바꾼다.
+원격에서 이 계정을 잡히면 그대로 root가 되므로, 열고 싶지 않으면 `whitelist`·`password`·
+`off`로 바꾼다.
+
+`whitelist`는 그 중간이다 — `ORCA_SUDO_WHITELIST`에 열거한 명령(자기 유닛 제어, `apt-get`)만
+비밀번호 없이 통과시킨다. 어느 모드든 `ORCA_SUDO_LOG=on`(기본)이면 root 실행 내역이 남아
+`sudoreplay`로 재생된다. 먼저 며칠 관찰해 실제 쓰이는 명령을 확인한 뒤 목록을 좁히는
+순서를 권장한다.
 
 계정에 로컬 비밀번호를 줄 수 있다. `scripts/config.env`의 `ORCA_SERVICE_PASSWORD`에 적으면
 `04-orca-server.sh`가 실행마다 그 값으로 맞추고, 비워 두면 계정을 잠긴 상태로 남긴다. 값은
@@ -103,7 +124,7 @@ Orca pairing URL과 Tailscale Serve 주소가 임시 EC2 호스트명(`ip-172-..
 Host orca
     HostName <호스트>.<tailnet>.ts.net
     User orca
-    IdentityFile ~/.ssh/id_ed25519
+    IdentityFile ~/.ssh/orca_vscode
     ServerAliveInterval 30
     ServerAliveCountMax 6
 ```
@@ -120,9 +141,10 @@ Host orca
 | 위치 | 역할 |
 |---|---|
 | [`terraform/`](terraform/) | 4GB Lightsail, 고정 IP, 키페어, 자동 스냅샷, 공인 방화벽 |
-| [`scripts/install/`](scripts/install/) | 호스트, Tailscale, 에이전트 CLI, Orca systemd, 저장소 설치 |
-| [`scripts/util/`](scripts/util/) | 생성·동기화·접근 URL 조회·검증 |
+| [`scripts/install/`](scripts/install/) | 호스트, Tailscale, 에이전트 CLI, Orca systemd, 저장소 설치, 감시·감사 |
+| [`scripts/util/`](scripts/util/) | 생성·동기화·접근 URL 조회·검증·백업·업데이트 확인 |
 | [`docs/lightsail-plan.md`](docs/lightsail-plan.md) | 상세 구축, 운영, 백업, 복구 절차 |
+| [`docs/stability-plan.md`](docs/stability-plan.md) | 안정성·보안 갭 분석과 개선 계획 |
 
 기본 `medium_3_0`은 Orca와 에이전트 하나를 위한 시작점이다. 병렬 에이전트, 큰 빌드,
 여러 내장 브라우저 탭을 자주 쓰면 `large_3_0`(8GB) 이상을 권장한다.
@@ -134,12 +156,38 @@ sudo systemctl status orca-serve --no-pager
 sudo journalctl -u orca-serve -f
 sudo ./util/show-orca-access.sh
 free -h
+
+systemctl list-timers 'orca-*' --no-pager   # 감시 타이머
+tail -20 /var/log/orca-alert.log            # 알림 내역
+sudo sudoreplay -l                          # root 로 실행한 내역
+./util/check-orca-update.sh                 # 새 버전 확인
+sudo ./util/backup-orca.sh                  # 프로필 백업
 ```
+
+`07-monitoring.sh`가 설치하는 감시 계층이 다음을 본다 — `orca-serve` 다운(5분), 디스크·스왑·
+OOM(1시간), 자격증명 유효성(주 1회), Orca 새 버전(주 1회), `verify-host.sh` 전체 점검(일 1회).
+알림은 `ALERT_WEBHOOK`으로 나가고, 비어 있으면 `/var/log/orca-alert.log`에만 쌓인다.
 
 Orca 버전은 `scripts/config.env`의 `ORCA_VERSION`으로 고정한다. 버전을 바꾼 뒤
 `04-orca-server.sh`를 다시 실행하면 바이너리를 교체하고 서비스를 재시작한다. 운영 데이터와
 페어링 키는 `/home/orca/.config/orca` 및 `/home/orca/.config/Orca`에 있으므로 스냅샷/백업에
 반드시 포함한다.
 
-비밀정보(`config.env`, Terraform state/tfvars, Codex·GitHub 자격증명, 브라우저 페어링 URL)는
-Git에 커밋하지 않는다.
+비밀정보(`config.env`, Terraform state/tfvars, Codex·GitHub 자격증명, 알림 웹훅, 브라우저
+페어링 URL)는 Git에 커밋하지 않는다.
+
+## 신뢰경계
+
+에이전트가 읽는 저장소 콘텐츠는 그대로 에이전트의 입력이 되고, `orca` 계정의 sudo 를 거쳐
+호스트 전체에 닿는다. 그래서 이 호스트에서 가장 중요한 설정은 두 개다.
+
+- `REPOS` — 여기 등록한 저장소가 신뢰경계다. 실제 작업 대상만 명시적으로 적는다.
+  `REPOS=all` 은 GitHub 계정 상태에 따라 목록이 자동으로 바뀌므로 경계를 사람이 선언한 것이
+  아니다. `all` 을 쓰더라도 포크와 보관 저장소는 기본으로 빠진다.
+- `ORCA_SERVICE_SUDO` — `nopasswd` 는 이 계정을 root 의 별칭으로 만든다. `whitelist` 로
+  좁히거나, 최소한 `ORCA_SUDO_LOG=on`(기본)으로 실행 내역을 남긴다.
+
+에이전트 각각의 **명령 자동 승인 정책**도 함께 확인한다. 이 값은 이 저장소의 코드가 아니라
+Orca·Claude Code·Codex 의 런타임 설정에 있다.
+
+전체 분석과 남은 항목은 [`docs/stability-plan.md`](docs/stability-plan.md) 6절에 있다.

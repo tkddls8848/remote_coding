@@ -7,6 +7,10 @@
 # 편집하면 새 파일 소유자가 갈라져 Orca가 쓰지 못하는 경로가 생긴다.
 # 그래서 orca에 로그인 셸과 공개키를 주고, SSH는 키 인증만 받는다.
 # 이 계정의 sudo 권한은 04-orca-server.sh 가 ORCA_SERVICE_SUDO 로 정한다.
+#
+# 공개키는 orca 전용 키를 쓴다(ORCA_SSH_PUBLIC_KEY). ubuntu 의 키를 복사하면 키 하나가
+# 두 계정을 동시에 열고, orca 는 sudo 를 가지므로 키 탈취가 곧 호스트 root 다.
+# docs/stability-plan.md 6.3.
 
 . "$(dirname "${BASH_SOURCE[0]}")/../util/lib.sh"
 
@@ -47,13 +51,47 @@ else
 fi
 
 # --- 3. 공개키 ---------------------------------------------------------------
-# 관리 PC가 이미 ubuntu로 붙고 있으므로 같은 Lightsail 키페어를 그대로 쓴다.
+# orca 는 sudo 를 가진다. ubuntu 의 키를 그대로 복사하면 키 하나가 두 계정을 동시에 열고,
+# ubuntu 키 탈취가 곧 호스트 root 다 — 계정 분리가 형식으로만 남는다.
+# 그래서 기본은 orca 전용 키다. docs/stability-plan.md 6.3.
+#
+# 관리 PC에서:
+#   ssh-keygen -t ed25519 -f ~/.ssh/orca_vscode -C "vscode->orca"
+# 그리고 config.env 에:
+#   ORCA_SSH_PUBLIC_KEY=~/.ssh/orca_vscode.pub
 admin_home="$(getent passwd ubuntu | cut -d: -f6)"
 [ -n "$admin_home" ] || die "ubuntu 계정을 찾지 못했다. Lightsail 기본 관리 계정이 필요하다."
-src_keys="$admin_home/.ssh/authorized_keys"
-sudo test -s "$src_keys" \
-    || die "ubuntu 계정의 authorized_keys가 비어 있다: $src_keys
+admin_keys="$admin_home/.ssh/authorized_keys"
+
+new_keys="$(mktemp)"
+trap 'rm -f "$new_keys"' EXIT
+
+if [ -n "$ORCA_SSH_PUBLIC_KEY" ]; then
+    case "$ORCA_SSH_PUBLIC_KEY" in
+        ssh-*|ecdsa-*|sk-ssh-*|sk-ecdsa-*) printf '%s\n' "$ORCA_SSH_PUBLIC_KEY" > "$new_keys" ;;
+        *)
+            [ -f "$ORCA_SSH_PUBLIC_KEY" ] \
+                || die "ORCA_SSH_PUBLIC_KEY 가 공개키 원문도, 이 서버에 있는 파일도 아니다: $ORCA_SSH_PUBLIC_KEY
+  로컬 config.env 에 파일 경로로 적었다면 util/sync-host.sh 를 다시 돌린다 (내용으로 풀어 보낸다)."
+            cat "$ORCA_SSH_PUBLIC_KEY" > "$new_keys"
+            ;;
+    esac
+    ok "orca 전용 공개키 사용"
+elif [ "$ORCA_SSH_REUSE_ADMIN_KEY" = 1 ]; then
+    sudo test -s "$admin_keys" \
+        || die "ubuntu 계정의 authorized_keys가 비어 있다: $admin_keys
   Lightsail 키페어로 접속 중인지 확인할 것."
+    sudo cat "$admin_keys" > "$new_keys"
+    warn "ubuntu 의 키를 orca 로 복사한다 (ORCA_SSH_REUSE_ADMIN_KEY=1)."
+    warn "키 하나가 두 계정을 연다 — ubuntu 키가 털리면 orca 를 거쳐 그대로 호스트 root 다."
+else
+    die "orca 에 등록할 공개키가 없다.
+  전용 키를 만들어 config.env 의 ORCA_SSH_PUBLIC_KEY 에 적고 util/sync-host.sh 를 다시 돌린다:
+    ssh-keygen -t ed25519 -f ~/.ssh/orca_vscode -C \"vscode->orca\"
+    ORCA_SSH_PUBLIC_KEY=~/.ssh/orca_vscode.pub
+  ubuntu 의 키를 그대로 쓰려면(권장하지 않음) ORCA_SSH_REUSE_ADMIN_KEY=1 로 둔다.
+  docs/stability-plan.md 6.3 참조."
+fi
 
 sudo install -d -o "$ORCA_SERVICE_USER" -g "$ORCA_GROUP" -m 0700 "$ORCA_HOME/.ssh"
 sudo touch "$ORCA_HOME/.ssh/authorized_keys"
@@ -74,13 +112,26 @@ added="$(sudo bash -c '
     done < "$src"
     cat "$tmp" > "$dst"
     printf "%s" "$n"
-' bash "$src_keys" "$ORCA_HOME/.ssh/authorized_keys")"
+' bash "$new_keys" "$ORCA_HOME/.ssh/authorized_keys")"
 
 sudo chown "$ORCA_SERVICE_USER:$ORCA_GROUP" "$ORCA_HOME/.ssh/authorized_keys"
 sudo chmod 0600 "$ORCA_HOME/.ssh/authorized_keys"
 # sshd StrictModes는 홈이 그룹/기타 쓰기 가능이면 키를 무시한다.
 sudo chmod g-w,o-w "$ORCA_HOME"
 ok "authorized_keys 구성 (신규 ${added}개)"
+
+# 두 계정의 키가 겹치면 계정 분리가 형식으로만 남는다. 상태를 눈에 보이게 남긴다.
+# 비교는 키 타입+본문만 본다 (주석/옵션은 다를 수 있다).
+keyprint() { sudo awk 'NF >= 2 && $1 !~ /^#/ { print $1" "$2 }' "$1" 2>/dev/null | sort -u; }
+shared="$(comm -12 <(keyprint "$admin_keys") <(keyprint "$ORCA_HOME/.ssh/authorized_keys") | wc -l)"
+if [ "${shared:-0}" -gt 0 ]; then
+    warn "ubuntu 와 $ORCA_SERVICE_USER 가 공개키 ${shared}개를 공유한다."
+    warn "그 키 하나가 두 계정을 동시에 열고, $ORCA_SERVICE_USER 는 sudo 를 가진다 (6.3)."
+else
+    ok "ubuntu 와 $ORCA_SERVICE_USER 의 공개키가 겹치지 않는다"
+fi
+
+# 키 교체 절차는 docs/lightsail-plan.md 4.3 "SSH 키 교체" 에 있다.
 
 # --- 4. sshd ----------------------------------------------------------------
 say "sshd: $ORCA_SERVICE_USER 는 키 인증 전용"
@@ -143,7 +194,7 @@ cat <<TXT
   Host orca
       HostName ${host_target}
       User ${ORCA_SERVICE_USER}
-      IdentityFile ~/.ssh/id_ed25519
+      IdentityFile ~/.ssh/orca_vscode
       ServerAliveInterval 30
       ServerAliveCountMax 6
 
@@ -164,5 +215,14 @@ fi
 echo
 warn "4GB(medium_3_0)에서 VS Code Server와 확장은 Orca와 메모리를 나눠 쓴다."
 warn "무거운 확장(원격 언어 서버, 인덱서)을 상시 켜 두려면 large_3_0(8GB) 이상을 권장한다."
+# --- 8. 드리프트 기준값 ------------------------------------------------------
+# authorized_keys 가 나중에 바뀌면 verify-host.sh 가 알아챈다 (6.6-4).
+sudo install -d -o root -g root -m 0700 "$BASELINE_DIR"
+sudo sha256sum "$ORCA_HOME/.ssh/authorized_keys" | awk '{print $1}' \
+    | sudo tee "$BASELINE_DIR/orca-authorized-keys.sha256" >/dev/null
+sudo chmod 0600 "$BASELINE_DIR/orca-authorized-keys.sha256"
+ok "authorized_keys 기준값 기록"
+
 echo
+echo "다음: ./install/07-monitoring.sh"
 echo "점검: ./util/verify-host.sh"

@@ -33,5 +33,11 @@ enable_public_web = false
 enable_auto_snapshot = true
 auto_snapshot_time   = "19:00"
 
-# 비워두면 checkip.amazonaws.com 으로 자동 감지한다.
+# SSH(22) 허용 대상. 비워두면 checkip.amazonaws.com 으로 자동 감지해 /32 하나를 연다.
 # my_ip = "203.0.113.10"
+
+# 고정된 접속 위치가 둘 이상이면 목록으로 적는다. 값이 있으면 my_ip 와 자동 감지보다
+# 우선하고, 자동 감지 호출 자체가 사라진다.
+# 단일 /32 만 두면 ISP DHCP·VPN 전환·출장으로 IP 가 바뀌는 순간 잠긴다
+# (docs/stability-plan.md 3.2). 긴급 경로로는 Tailscale SSH 를 확보해 둔다.
+# admin_cidrs = ["203.0.113.10/32", "198.51.100.0/29"]
