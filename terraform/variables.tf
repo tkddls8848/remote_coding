@@ -51,6 +51,18 @@ variable "static_ip_name" {
   default     = ""
 }
 
+variable "allocate_static_ip" {
+  description = "Create a static IP. Disable on a replacement host when reusing the production IP managed by the original state."
+  type        = bool
+  default     = true
+}
+
+variable "static_ip_target_instance_name" {
+  description = "Attach the static IP to a replacement instance. Empty selects this state's own instance."
+  type        = string
+  default     = ""
+}
+
 variable "phase" {
   description = <<-EOT
     방화벽 최종 상태.

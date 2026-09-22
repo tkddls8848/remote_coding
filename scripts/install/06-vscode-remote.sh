@@ -77,6 +77,10 @@ if [ -n "$ORCA_SSH_PUBLIC_KEY" ]; then
             ;;
     esac
     ok "orca 전용 공개키 사용"
+elif [ "$ORCA_SERVICE_USER" = ubuntu ]; then
+    sudo test -s "$admin_keys" || die "ubuntu authorized_keys가 비어 있다."
+    sudo cat "$admin_keys" > "$new_keys"
+    ok "ubuntu의 기존 Lightsail SSH 키 유지"
 elif [ "$ORCA_SSH_REUSE_ADMIN_KEY" = 1 ]; then
     sudo test -s "$admin_keys" \
         || die "ubuntu 계정의 authorized_keys가 비어 있다: $admin_keys
@@ -124,7 +128,9 @@ ok "authorized_keys 구성 (신규 ${added}개)"
 # 비교는 키 타입+본문만 본다 (주석/옵션은 다를 수 있다).
 keyprint() { sudo awk 'NF >= 2 && $1 !~ /^#/ { print $1" "$2 }' "$1" 2>/dev/null | sort -u; }
 shared="$(comm -12 <(keyprint "$admin_keys") <(keyprint "$ORCA_HOME/.ssh/authorized_keys") | wc -l)"
-if [ "${shared:-0}" -gt 0 ]; then
+if [ "$ORCA_SERVICE_USER" = ubuntu ]; then
+    ok "Orca와 관리 SSH가 ubuntu 계정을 함께 사용한다"
+elif [ "${shared:-0}" -gt 0 ]; then
     warn "ubuntu 와 $ORCA_SERVICE_USER 가 공개키 ${shared}개를 공유한다."
     warn "그 키 하나가 두 계정을 동시에 열고, $ORCA_SERVICE_USER 는 sudo 를 가진다 (6.3)."
 else
@@ -184,6 +190,10 @@ if command -v tailscale >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
     tailscale_dns="${tailscale_dns%.}"
 fi
 host_target="${tailscale_dns:-$(hostname -I | awk '{print $1}')}"
+identity_file=~/.ssh/orca_vscode
+if [ "$ORCA_SERVICE_USER" = ubuntu ]; then
+    identity_file='~/.ssh/orca-lightsail-tokyo'
+fi
 
 echo
 ok "VS Code Remote-SSH 준비 완료"
@@ -194,7 +204,7 @@ cat <<TXT
   Host orca
       HostName ${host_target}
       User ${ORCA_SERVICE_USER}
-      IdentityFile ~/.ssh/orca_vscode
+      IdentityFile ${identity_file}
       ServerAliveInterval 30
       ServerAliveCountMax 6
 

@@ -37,11 +37,11 @@ REPOS_INCLUDE_ARCHIVED="${REPOS_INCLUDE_ARCHIVED:-0}"
 GITHUB_OWNER="${GITHUB_OWNER:-}"
 ORCA_VERSION="${ORCA_VERSION:-v1.4.188}"
 ORCA_PORT="${ORCA_PORT:-6768}"
-ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-orca}"
+ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-ubuntu}"
 ORCA_SERVICE_SUDO="${ORCA_SERVICE_SUDO:-nopasswd}"
 ORCA_SUDO_LOG="${ORCA_SUDO_LOG:-on}"
 ORCA_SUDO_LOG_DIR="${ORCA_SUDO_LOG_DIR:-/var/log/sudo-io}"
-ORCA_SERVICE_PASSWORD_MIN_LEN="${ORCA_SERVICE_PASSWORD_MIN_LEN:-16}"
+ORCA_SERVICE_PASSWORD_MIN_LEN="${ORCA_SERVICE_PASSWORD_MIN_LEN:-5}"
 ORCA_MEMORY_HIGH="${ORCA_MEMORY_HIGH:-2G}"
 ORCA_MEMORY_MAX="${ORCA_MEMORY_MAX:-2800M}"
 ORCA_SHA256="${ORCA_SHA256:-}"
@@ -66,6 +66,12 @@ TXT
 printf 'ORCA_SERVICE_PASSWORD=%q\n'  "${ORCA_SERVICE_PASSWORD:-}"  >> "$tmp"
 printf 'ORCA_SUDO_WHITELIST=%q\n'    "${ORCA_SUDO_WHITELIST:-}"    >> "$tmp"
 printf 'ALERT_WEBHOOK=%q\n'          "${ALERT_WEBHOOK:-}"          >> "$tmp"
+printf 'TELEGRAM_BOT_ENABLED=%q\n' "$TELEGRAM_BOT_ENABLED" >> "$tmp"
+printf 'TELEGRAM_BOT_REPO=%q\n' "$TELEGRAM_BOT_REPO" >> "$tmp"
+printf 'TELEGRAM_BOT_REF=%q\n' "$TELEGRAM_BOT_REF" >> "$tmp"
+printf 'TELEGRAM_BOT_DIR=%q\n' "$TELEGRAM_BOT_DIR" >> "$tmp"
+printf 'TELEGRAM_BOT_START=%q\n' "$TELEGRAM_BOT_START" >> "$tmp"
+printf 'TELEGRAM_BOT_UPDATE=%q\n' "$TELEGRAM_BOT_UPDATE" >> "$tmp"
 # 로컬에서는 파일 경로로 적는 편이 자연스럽지만 서버는 그 파일을 볼 수 없다.
 # 경로면 여기서 내용으로 풀어 보낸다.
 vscode_key="${ORCA_SSH_PUBLIC_KEY:-}"
@@ -81,7 +87,17 @@ if [ -n "$vscode_key" ]; then
 fi
 printf 'ORCA_SSH_PUBLIC_KEY=%q\n'    "$vscode_key"                 >> "$tmp"
 
+# Store secrets separately: syncing scripts must not delete the staged bot env.
+# Create with 0600 before writing, so scp never exposes the token through umask.
+if [ "$TELEGRAM_BOT_ENABLED" = 1 ] && [ -n "$TELEGRAM_BOT_ENV_FILE" ]; then
+    bot_env="${TELEGRAM_BOT_ENV_FILE/#\~/$HOME}"
+    [ -s "$bot_env" ] || die "TELEGRAM_BOT_ENV_FILE is missing or empty: $bot_env"
+    ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" \
+        'umask 077; mkdir -p ~/remote-lightsail-secrets; chmod 700 ~/remote-lightsail-secrets; cat > ~/remote-lightsail-secrets/telegram.env; chmod 600 ~/remote-lightsail-secrets/telegram.env' < "$bot_env"
+fi
+
 ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'rm -rf ~/remote-lightsail-scripts && mkdir -p ~/remote-lightsail-scripts'
+ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'chmod 700 ~/remote-lightsail-scripts'
 scp "${SSH_ARGS[@]}" -qr "$SCRIPT_DIR"/install "$SCRIPT_DIR"/util "ubuntu@$STATIC_IP:~/remote-lightsail-scripts/"
 scp "${SSH_ARGS[@]}" -q "$tmp" "ubuntu@$STATIC_IP:~/remote-lightsail-scripts/host.env"
 # host.env 는 이제 서비스 계정 비밀번호를 담으므로 ubuntu 만 읽게 한다.
@@ -101,11 +117,12 @@ cat <<TXT
   ./install/02-agent-cli.sh  # Claude/Codex CLI 설치 (로그인은 사람이 직접)
   ./install/03-private-network.sh  # 최초 실행 시 인증 URL을 출력하고 완료될 때까지 대기
   ./install/04-orca-server.sh
-  sudo -u orca -H /bin/bash -c 'cd "\$HOME" && exec codex login --device-auth'
-  sudo -u orca -H /bin/bash -c 'cd "\$HOME" && exec gh auth login'
+  sudo -u ${ORCA_SERVICE_USER} -H /bin/bash -c 'cd "\$HOME" && exec codex login --device-auth'
+  sudo -u ${ORCA_SERVICE_USER} -H /bin/bash -c 'cd "\$HOME" && exec gh auth login'
   ./install/05-repos.sh
   ./install/06-vscode-remote.sh
   ./install/07-monitoring.sh
+  ./install/08-telegram-bot.sh
   sudo ./util/show-orca-access.sh
   ./util/verify-host.sh
 TXT

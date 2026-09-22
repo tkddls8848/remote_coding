@@ -1,0 +1,5 @@
+# Independent new-host state. Never apply these values to the old root state.
+ssh_public_key_path = "~/.ssh/orca-lightsail-tokyo.pub"
+phase               = "final"
+# The production IP remains owned by the original root state and is attached here.
+allocate_static_ip = false

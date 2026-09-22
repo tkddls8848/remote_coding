@@ -172,11 +172,12 @@ cat <<TXT
   ./install/02-agent-cli.sh
   ./install/03-private-network.sh  # 최초 실행 시 브라우저 인증 포함
   ./install/04-orca-server.sh
-  sudo -u orca -H /bin/bash -c 'cd "\$HOME" && exec codex login --device-auth'
-  sudo -u orca -H /bin/bash -c 'cd "\$HOME" && exec gh auth login'
+  sudo -u ${ORCA_SERVICE_USER} -H /bin/bash -c 'cd "\$HOME" && exec codex login --device-auth'
+  sudo -u ${ORCA_SERVICE_USER} -H /bin/bash -c 'cd "\$HOME" && exec gh auth login'
   ./install/05-repos.sh
   ./install/06-vscode-remote.sh
   ./install/07-monitoring.sh
+  ./install/08-telegram-bot.sh
   sudo ./util/show-orca-access.sh
   ./util/verify-host.sh
 TXT

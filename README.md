@@ -1,5 +1,7 @@
 # remote_coding
 
+기존 서버 보존과 새 서버 전환 절차는 [서버 이관 문서](docs/server-migration.md)를 따른다.
+
 AWS Lightsail에 Orca를 24시간 실행하고, 관리 PC의 **웹 브라우저**에서 코딩 에이전트와
 워크트리·터미널·파일을 제어하는 개인용 원격 개발 시스템이다.
 
@@ -8,10 +10,10 @@ AWS Lightsail에 Orca를 24시간 실행하고, 관리 PC의 **웹 브라우저*
   └─ Tailscale 사설망 ──> Lightsail (Ubuntu 24.04, 4GB+)
                            ├─ orca-serve.service
                            ├─ Codex / Claude Code
-                           ├─ /home/orca/workspace/*
-                           └─ (입주 앱: 자기 계정 / 자기 저장소가 소유)
+                           ├─ /home/ubuntu/workspace/*
+                           └─ stock-chatbot.service (ubuntu, /srv/stock-chatbot)
 
-관리 PC VS Code ─ Tailscale SSH ──> orca 계정 (같은 workspace 편집)
+관리 PC VS Code ─ Tailscale SSH ──> ubuntu 계정 (같은 workspace 편집)
 
 관리 PC SSH ── 공인 IP /32 ──> 설치·복구용 ubuntu 계정
 ```
@@ -20,13 +22,12 @@ AWS Lightsail에 Orca를 24시간 실행하고, 관리 PC의 **웹 브라우저*
 공인 방화벽에 열지 않으며, 같은 Tailscale tailnet의 브라우저만 접근한다. Orca Remote
 Server/Web Client는 Beta이므로 서버를 공개 인터넷에 직접 노출하지 않는다.
 
-**이 호스트는 인프라 비용 때문에 다른 프로젝트와 공유한다.** 입주 앱은 각자 전용 계정과
-`/srv/<앱>` 아래에서 돌고, 설치·유닛·점검·운영 문서는 **그 앱의 저장소가 소유한다.**
-이 저장소는 인스턴스·고정 IP·공인 방화벽·스냅샷·Orca·Tailscale·OS 계정까지만 책임진다.
-
-경계에서 만나는 지점은 둘뿐이다. 공개 웹이 필요한 입주 앱이 있으면 `enable_public_web=true`로
-80/443을 열고(앱 내부 포트는 열지 않는다), 앱의 영속 데이터는 일일 자동 스냅샷이 함께 담는다.
-현재 입주 앱은 `stock_chatbot` 하나이며 그 운영 기준은 해당 저장소의 `infra/`에 있다.
+Orca와 Telegram 봇은 Lightsail 기본 계정 `ubuntu`로 실행한다. `ubuntu`에는
+sudo 권한(`NOPASSWD:ALL`)과 로컬 비밀번호 `ubuntu`를 설정한다. SSH는 기존 Lightsail
+공개키를 사용한다. 봇은 `08-telegram-bot.sh`가 저장소 전체를 `/srv/stock-chatbot`에
+클론하고 Python 가상환경과 `stock-chatbot.service`를 설치한다. 기본값은 전환 전 정지이며,
+기존 봇을 멈춘 뒤 `TELEGRAM_BOT_START=1`로 시작한다.
+공개 웹·쇼츠 등 나머지 앱 서비스는 `stock_chatbot/infra/`에서 관리한다.
 
 **AWS 자원을 만드는 Terraform은 이 저장소 하나뿐이다.** 입주 앱 저장소는 같은 자원을
 선언하지 않고(Lightsail 공개 포트 API는 규칙 전체를 교체하므로 나중에 apply한 쪽이 상대의
@@ -57,15 +58,16 @@ cd ~/remote-lightsail-scripts
 ./install/04-orca-server.sh
 
 # 자격증명은 반드시 Orca 서비스 계정에 등록한다. headless 서버는 device code를 쓴다.
-sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec codex login --device-auth'
-sudo -u orca -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
+sudo -u ubuntu -H /bin/bash -c 'cd "$HOME" && exec codex login --device-auth'
+sudo -u ubuntu -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
 
-# 작업 대상 저장소를 /home/orca/workspace 로 가져온다 (포크·보관은 기본 제외)
+# 작업 대상 저장소를 /home/ubuntu/workspace 로 가져온다 (포크·보관은 기본 제외)
 ./install/05-repos.sh
 ./install/06-vscode-remote.sh
 
 # 장애 알림, 자원 감시, 보안 이벤트 감사
 ./install/07-monitoring.sh
+./install/08-telegram-bot.sh
 
 ./util/verify-host.sh
 sudo ./util/show-orca-access.sh
@@ -79,62 +81,57 @@ sudo ./util/show-orca-access.sh
 `03-private-network.sh`는 최초 인증 때부터 이 이름을 적용하고 제어면 반영을 기다린 뒤 종료하므로,
 Orca pairing URL과 Tailscale Serve 주소가 임시 EC2 호스트명(`ip-172-...`)으로 굳지 않는다.
 
-## VS Code Remote-SSH
+## Telegram 배포
 
-`06-vscode-remote.sh`는 `orca` 계정에 로그인 셸과 관리 PC 공개키를 부여해 VS Code가
-에이전트와 **같은 계정**으로 붙게 한다. `ubuntu`로 붙어 `/home/orca/workspace`를 편집하면
-새 파일 소유자가 갈라져 Orca가 쓰지 못하는 경로가 생기기 때문이다. SSH는 이 계정의
-비밀번호 인증을 막고 공개키만 받는다.
-
-공개키는 `orca` 전용 키를 쓴다. `scripts/config.env`의 `ORCA_SSH_PUBLIC_KEY`에 적으면
-`sync-host.sh`가 서버로 보내고 `06-vscode-remote.sh`가 그 키만 등록한다.
+`scripts/config.env`에서 로컬 비밀 설정 파일을 지정하고 `sync-host.sh`를 실행한다:
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/orca_vscode -C "vscode->orca"
-# scripts/config.env: ORCA_SSH_PUBLIC_KEY=~/.ssh/orca_vscode.pub
+TELEGRAM_BOT_ENV_FILE=C:/Users/PSI/orca/stock_chatbot/.env
 ```
 
-`ubuntu`의 키를 그대로 복사하지 않는 이유는 `orca`가 sudo를 갖기 때문이다 — 키 하나가 두
-계정을 동시에 열면 `ubuntu` 키 탈취 한 번이 그대로 호스트 root다. 옛 동작이 필요하면
-`ORCA_SSH_REUSE_ADMIN_KEY=1`로 명시하고, `verify-host.sh`가 두 계정의 키가 겹치는지 본다.
+이 파일은 SSH로 `~/remote-lightsail-secrets/telegram.env`에 전송한다(디렉터리 0700,
+파일 0600). 08 단계가 앱 루트 `.env`로 설치한다. 기존 서버 `.env`가 있으면 새 파일
+전송 없이도 설치할 수 있다. 토큰과 chat ID는 필수다.
 
-`orca`는 기본으로 sudo를 쓸 수 있다. 이 계정으로 붙은 사람과 에이전트가 호스트를 직접
-관리하기 때문이고, headless 에이전트는 비밀번호를 입력할 방법이 없어 기본값이
-`ORCA_SERVICE_SUDO=nopasswd`다(`scripts/config.env`). 정책은 `04-orca-server.sh`가 매 실행
-그대로 맞추고 `verify-host.sh`가 선언과 실제가 같은지 본다. **이 호스트는 입주 앱과
-공유하므로, sudo는 `/srv/<앱>/.env`를 포함한 호스트 전체를 이 계정에 여는 것과 같다.**
-원격에서 이 계정을 잡히면 그대로 root가 되므로, 열고 싶지 않으면 `whitelist`·`password`·
-`off`로 바꾼다.
+GitHub에 push된 `TELEGRAM_BOT_REF`(기본 `main`)를 배포하므로 로컬 미커밋 변경은
+포함되지 않는다. `telegram_bot/`만 복사하면 의존 파일이 빠지므로 저장소 전체를 받는다.
+재배포도 `./install/08-telegram-bot.sh`로 실행한다. 작업 트리에 변경이 있거나 브랜치가
+다르면 중단하고, 정상 체크아웃은 fast-forward로만 갱신한다. `.env`와 `data/`는 유지한다.
+로컬에서 사용 중인 봇은 서버 시작 전에 종료해야 같은 토큰의 polling 충돌을 피할 수 있다.
+관심종목·발송 이력 등 기존 `data/`는 Git에 없으므로 필요하면 별도로 옮긴다.
 
-`whitelist`는 그 중간이다 — `ORCA_SUDO_WHITELIST`에 열거한 명령(자기 유닛 제어, `apt-get`)만
-비밀번호 없이 통과시킨다. 어느 모드든 `ORCA_SUDO_LOG=on`(기본)이면 root 실행 내역이 남아
-`sudoreplay`로 재생된다. 먼저 며칠 관찰해 실제 쓰이는 명령을 확인한 뒤 목록을 좁히는
-순서를 권장한다.
+`provision-host.sh`는 인프라 생성과 파일 전송까지 한다. 출력된 서버 설치 순서의
+08 단계는 기본적으로 설치만 수행한다. `TELEGRAM_BOT_START=1`일 때만 봇을 시작한다. `TELEGRAM_BOT_ENABLED=0`은 설치를 건너뛸 뿐
+이미 실행 중인 봇을 중지하지 않는다.
 
-계정에 로컬 비밀번호를 줄 수 있다. `scripts/config.env`의 `ORCA_SERVICE_PASSWORD`에 적으면
-`04-orca-server.sh`가 실행마다 그 값으로 맞추고, 비워 두면 계정을 잠긴 상태로 남긴다. 값은
-커밋하지 않는다(예시 파일은 비어 있다). 쓰임새는 호스트 안에서 `su - orca`로 넘어가는 것뿐
-이며, 원격에서 이 비밀번호로 붙는 경로는 없다 — sshd 드롭인이 이 계정의 비밀번호 인증을
-끄고 공개키만 받는다. 다만 이 호스트는 입주 앱과 공유하므로, 짧은 값은 다른 계정에 `su`
-경로를 열어 주는 선택이라는 점을 감안해 정한다.
+새 서버의 `config.env`는 아래 값으로 설정한다. 기존 운영 서버는 이관 완료 전까지 유지한다:
 
-관리 PC의 `~/.ssh/config`:
+```bash
+ORCA_SERVICE_USER=ubuntu
+ORCA_SERVICE_PASSWORD=ubuntu
+ORCA_SERVICE_PASSWORD_MIN_LEN=5
+ORCA_SERVICE_SUDO=nopasswd
+```
+
+기존 `/home/orca`의 프로필과 인증은 기본 설치가 자동으로 옮기지 않는다.
+새 서버의 `ubuntu`에서 CLI 인증과 Orca 페어링을 확인한다.
+
+## VS Code Remote-SSH
+
+`06-vscode-remote.sh`는 `ubuntu`의 기존 `authorized_keys`를 유지하고 SSH 키 인증을
+설정한다. `ORCA_SSH_PUBLIC_KEY`로 키를 추가할 수도 있다. `verify-host.sh`는
+두 서비스의 실행 계정과 자동 시작 여부를 함께 확인한다.
 
 ```sshconfig
 Host orca
     HostName <호스트>.<tailnet>.ts.net
-    User orca
-    IdentityFile ~/.ssh/orca_vscode
+    User ubuntu
+    IdentityFile ~/.ssh/orca-lightsail-tokyo
     ServerAliveInterval 30
     ServerAliveCountMax 6
 ```
 
-`Remote-SSH: Connect to Host...` → `orca` → `/home/orca/workspace`를 연다. 스크립트가
-출력하는 MagicDNS 이름을 쓰면 관리자 공인 IP가 바뀌어도 `terraform apply`로 `/32` 규칙을
-갱신할 필요가 없다.
-
-브라우저 Orca와 VS Code를 동시에 켜면 4GB에서는 여유가 거의 없다. 원격 언어 서버나 인덱서
-확장을 상시 켤 계획이면 `large_3_0`(8GB) 이상으로 올린다.
+VS Code에서 `orca`에 접속하고 `/home/ubuntu/workspace`를 연다.
 
 ## 구성
 
@@ -170,7 +167,7 @@ OOM(1시간), 자격증명 유효성(주 1회), Orca 새 버전(주 1회), `veri
 
 Orca 버전은 `scripts/config.env`의 `ORCA_VERSION`으로 고정한다. 버전을 바꾼 뒤
 `04-orca-server.sh`를 다시 실행하면 바이너리를 교체하고 서비스를 재시작한다. 운영 데이터와
-페어링 키는 `/home/orca/.config/orca` 및 `/home/orca/.config/Orca`에 있으므로 스냅샷/백업에
+페어링 키는 `/home/ubuntu/.config/orca` 및 `/home/ubuntu/.config/Orca`에 있으므로 스냅샷/백업에
 반드시 포함한다.
 
 비밀정보(`config.env`, Terraform state/tfvars, Codex·GitHub 자격증명, 알림 웹훅, 브라우저

@@ -99,7 +99,7 @@ if [ -n "$ORCA_SERVICE_PASSWORD" ]; then
         warn "./install/06-vscode-remote.sh 를 돌려 이 계정을 키 인증 전용으로 막을 것."
     fi
 else
-    warn "ORCA_SERVICE_PASSWORD 가 비어 있다 — 계정을 잠긴 상태로 둔다."
+    warn "ORCA_SERVICE_PASSWORD 가 비어 있다 — 기존 비밀번호 상태를 변경하지 않는다."
 fi
 
 # --- sudo 권한 --------------------------------------------------------------

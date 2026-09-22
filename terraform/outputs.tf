@@ -1,6 +1,6 @@
 output "static_ip" {
   description = "고정 IP 주소"
-  value       = aws_lightsail_static_ip.orca.ip_address
+  value       = local.host_ip
 }
 
 output "instance_name" {
@@ -10,12 +10,12 @@ output "instance_name" {
 
 output "ssh_command" {
   description = "서버 접속 명령"
-  value       = "ssh ubuntu@${aws_lightsail_static_ip.orca.ip_address}"
+  value       = "ssh ubuntu@${local.host_ip}"
 }
 
 output "browser_access_command" {
   description = "SSH로 접속해 최신 Orca 브라우저 URL을 표시하는 명령"
-  value       = "ssh ubuntu@${aws_lightsail_static_ip.orca.ip_address} 'sudo /home/ubuntu/remote-lightsail-scripts/util/show-orca-access.sh'"
+  value       = "ssh ubuntu@${local.host_ip} 'sudo /home/ubuntu/remote-lightsail-scripts/util/show-orca-access.sh'"
 }
 
 output "phase" {

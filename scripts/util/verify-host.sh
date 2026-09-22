@@ -13,6 +13,17 @@ check() {
 say "Orca 상시 서비스"
 check "orca-serve active" systemctl is-active --quiet orca-serve.service
 check "orca-serve 부팅 시 자동 시작" systemctl is-enabled --quiet orca-serve.service
+check "Orca 실행 계정" test "$(systemctl show orca-serve.service -p User --value)" = "$ORCA_SERVICE_USER"
+if [ "$TELEGRAM_BOT_ENABLED" = 1 ]; then
+  if [ "$TELEGRAM_BOT_START" = 1 ]; then
+    check "Telegram active" systemctl is-active --quiet stock-chatbot.service
+    check "Telegram 부팅 시 자동 시작" systemctl is-enabled --quiet stock-chatbot.service
+  else
+    check "Telegram 전환 전 정지" test "$(systemctl show stock-chatbot.service -p ActiveState --value)" = inactive
+  fi
+    check "Telegram 실행 계정" test "$(systemctl show stock-chatbot.service -p User --value)" = "$ORCA_SERVICE_USER"
+    check "Telegram 실행 경로" test "$(systemctl show stock-chatbot.service -p WorkingDirectory --value)" = "$TELEGRAM_BOT_DIR"
+fi
 check "Orca AppImage" test -x /opt/orca/orca-linux.AppImage
 orca_started_at="$(systemctl show orca-serve.service -p ActiveEnterTimestamp --value 2>/dev/null)"
 [ -n "$orca_started_at" ] || orca_started_at="15 min ago"
@@ -93,6 +104,7 @@ fi
 
 # 6.3 — 두 계정의 키가 겹치면 계정 분리가 형식으로만 남는다. orca 는 sudo 를 가지므로
 # ubuntu 키 탈취 한 번이 호스트 root 까지 간다. 현행은 "비어 있지 않은지"만으로는 부족하다.
+if [ "$ORCA_SERVICE_USER" != ubuntu ]; then
 check "$ORCA_SERVICE_USER / ubuntu authorized_keys 가 겹치지 않음" bash -lc '
     keyprint() { sudo awk "NF >= 2 && \$1 !~ /^#/ { print \$1\" \"\$2 }" "$1" 2>/dev/null | sort -u; }
     orca_home="$(getent passwd "'"$ORCA_SERVICE_USER"'" | cut -d: -f6)"
@@ -100,6 +112,7 @@ check "$ORCA_SERVICE_USER / ubuntu authorized_keys 가 겹치지 않음" bash -l
     [ -n "$orca_home" ] && [ -n "$ubuntu_home" ] || exit 0
     n="$(comm -12 <(keyprint "$ubuntu_home/.ssh/authorized_keys")                   <(keyprint "$orca_home/.ssh/authorized_keys") | wc -l)"
     [ "$n" -eq 0 ]'
+fi
 
 # 4.3 / 6.6-4 — Orca 바이너리가 설치 시점과 같은가.
 check "Orca 바이너리 체크섬" bash -lc '

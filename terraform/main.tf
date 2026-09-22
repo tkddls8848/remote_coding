@@ -2,6 +2,7 @@ locals {
   # 이름 규칙: 인스턴스 이름이 고정 IP·키페어 이름의 접두사다.
   static_ip_name    = var.static_ip_name != "" ? var.static_ip_name : "${var.instance_name}-ip"
   availability_zone = var.availability_zone != "" ? var.availability_zone : "${var.region}a"
+  host_ip           = var.allocate_static_ip ? aws_lightsail_static_ip.orca[0].ip_address : aws_lightsail_instance.orca.public_ip_address
 }
 
 # public_key 는 OpenSSH 공개키 원문을 그대로 받는다 (base64 로 다시 감싸지 않는다).
@@ -33,10 +34,22 @@ resource "aws_lightsail_instance" "orca" {
 }
 
 resource "aws_lightsail_static_ip" "orca" {
-  name = local.static_ip_name
+  count = var.allocate_static_ip ? 1 : 0
+  name  = local.static_ip_name
 }
 
 resource "aws_lightsail_static_ip_attachment" "orca" {
-  static_ip_name = aws_lightsail_static_ip.orca.name
-  instance_name  = aws_lightsail_instance.orca.name
+  count          = var.allocate_static_ip ? 1 : 0
+  static_ip_name = aws_lightsail_static_ip.orca[0].name
+  instance_name  = var.static_ip_target_instance_name != "" ? var.static_ip_target_instance_name : aws_lightsail_instance.orca.name
+}
+
+moved {
+  from = aws_lightsail_static_ip.orca
+  to   = aws_lightsail_static_ip.orca[0]
+}
+
+moved {
+  from = aws_lightsail_static_ip_attachment.orca
+  to   = aws_lightsail_static_ip_attachment.orca[0]
 }
