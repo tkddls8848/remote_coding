@@ -29,15 +29,6 @@ fi
 # 비밀번호를 쓸 때 요구하는 최소 길이. docs/stability-plan.md 6.9.
 ORCA_SERVICE_PASSWORD_MIN_LEN="${ORCA_SERVICE_PASSWORD_MIN_LEN:-5}"
 
-# Telegram runtime: a separate checkout from the editable development workspace.
-TELEGRAM_BOT_ENABLED="${TELEGRAM_BOT_ENABLED:-1}"
-TELEGRAM_BOT_REPO="${TELEGRAM_BOT_REPO:-https://github.com/tkddls8848/stock_chatbot.git}"
-TELEGRAM_BOT_REF="${TELEGRAM_BOT_REF:-main}"
-TELEGRAM_BOT_DIR="${TELEGRAM_BOT_DIR:-/srv/stock-chatbot}"
-# Local-only path, explicitly set to transfer secrets during sync-host.sh.
-TELEGRAM_BOT_ENV_FILE="${TELEGRAM_BOT_ENV_FILE:-}"
-TELEGRAM_BOT_START="${TELEGRAM_BOT_START:-0}"
-TELEGRAM_BOT_UPDATE="${TELEGRAM_BOT_UPDATE:-1}"
 # 서비스 계정의 sudo 권한. 이 계정으로 붙은 사람과 에이전트가 호스트를 직접 관리한다.
 #   nopasswd  — sudo 그룹 + NOPASSWD:ALL 드롭인 (기본). 비밀번호 없이 무엇이든 root.
 #   whitelist — sudo 그룹 + ORCA_SUDO_WHITELIST 에 열거한 명령만 NOPASSWD.

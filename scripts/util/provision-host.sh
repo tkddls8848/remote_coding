@@ -177,7 +177,6 @@ cat <<TXT
   ./install/05-repos.sh
   ./install/06-vscode-remote.sh
   ./install/07-monitoring.sh
-  ./install/08-telegram-bot.sh
   sudo ./util/show-orca-access.sh
   ./util/verify-host.sh
 TXT

@@ -66,12 +66,6 @@ TXT
 printf 'ORCA_SERVICE_PASSWORD=%q\n'  "${ORCA_SERVICE_PASSWORD:-}"  >> "$tmp"
 printf 'ORCA_SUDO_WHITELIST=%q\n'    "${ORCA_SUDO_WHITELIST:-}"    >> "$tmp"
 printf 'ALERT_WEBHOOK=%q\n'          "${ALERT_WEBHOOK:-}"          >> "$tmp"
-printf 'TELEGRAM_BOT_ENABLED=%q\n' "$TELEGRAM_BOT_ENABLED" >> "$tmp"
-printf 'TELEGRAM_BOT_REPO=%q\n' "$TELEGRAM_BOT_REPO" >> "$tmp"
-printf 'TELEGRAM_BOT_REF=%q\n' "$TELEGRAM_BOT_REF" >> "$tmp"
-printf 'TELEGRAM_BOT_DIR=%q\n' "$TELEGRAM_BOT_DIR" >> "$tmp"
-printf 'TELEGRAM_BOT_START=%q\n' "$TELEGRAM_BOT_START" >> "$tmp"
-printf 'TELEGRAM_BOT_UPDATE=%q\n' "$TELEGRAM_BOT_UPDATE" >> "$tmp"
 # 로컬에서는 파일 경로로 적는 편이 자연스럽지만 서버는 그 파일을 볼 수 없다.
 # 경로면 여기서 내용으로 풀어 보낸다.
 vscode_key="${ORCA_SSH_PUBLIC_KEY:-}"
@@ -86,15 +80,6 @@ if [ -n "$vscode_key" ]; then
     esac
 fi
 printf 'ORCA_SSH_PUBLIC_KEY=%q\n'    "$vscode_key"                 >> "$tmp"
-
-# Store secrets separately: syncing scripts must not delete the staged bot env.
-# Create with 0600 before writing, so scp never exposes the token through umask.
-if [ "$TELEGRAM_BOT_ENABLED" = 1 ] && [ -n "$TELEGRAM_BOT_ENV_FILE" ]; then
-    bot_env="${TELEGRAM_BOT_ENV_FILE/#\~/$HOME}"
-    [ -s "$bot_env" ] || die "TELEGRAM_BOT_ENV_FILE is missing or empty: $bot_env"
-    ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" \
-        'umask 077; mkdir -p ~/remote-lightsail-secrets; chmod 700 ~/remote-lightsail-secrets; cat > ~/remote-lightsail-secrets/telegram.env; chmod 600 ~/remote-lightsail-secrets/telegram.env' < "$bot_env"
-fi
 
 ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'rm -rf ~/remote-lightsail-scripts && mkdir -p ~/remote-lightsail-scripts'
 ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'chmod 700 ~/remote-lightsail-scripts'
@@ -122,7 +107,6 @@ cat <<TXT
   ./install/05-repos.sh
   ./install/06-vscode-remote.sh
   ./install/07-monitoring.sh
-  ./install/08-telegram-bot.sh
   sudo ./util/show-orca-access.sh
   ./util/verify-host.sh
 TXT

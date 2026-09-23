@@ -16,7 +16,6 @@ sudo -u ubuntu -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
 ./install/05-repos.sh
 ./install/06-vscode-remote.sh
 ./install/07-monitoring.sh
-./install/08-telegram-bot.sh
 ./util/verify-host.sh
 sudo ./util/show-orca-access.sh
 ```
@@ -41,12 +40,8 @@ sudo ./util/show-orca-access.sh
   `verify-host.sh` 일일 실행. 알림은 `ALERT_WEBHOOK`으로 나가고 비어 있으면
   `/var/log/orca-alert.log`에만 남는다.
 
-- `08-telegram-bot.sh`: GitHub의 `stock_chatbot` 전체 클론/fast-forward 갱신, Python venv,
-  `.env` 설치, `ubuntu` 계정으로 서비스 구성. `TELEGRAM_BOT_START=1`일 때만 시작. 수정된 체크아웃은 중단한다.
-
 `config.env`는 로컬 전용이다. `sync-host.sh`가 서버 설정을 `host.env`(0600)로 전송한다.
-`TELEGRAM_BOT_ENV_FILE`은 로컬 `.env` 경로다. 지정하면 별도 디렉터리에 0600으로 전송하고
-08 단계가 `/srv/stock-chatbot/.env`로 설치한다. 비밀값은 커밋하지 않는다.
+비밀값은 커밋하지 않는다.
 
 `ORCA_SSH_PUBLIC_KEY`에 파일 경로를 적으면 `sync-host.sh`가 내용으로 풀어 보낸다(서버는
 관리 PC의 파일을 볼 수 없다).
@@ -103,6 +98,4 @@ Orca Web은 브라우저의 보안 컨텍스트가 필요하므로 최종 URL은
 `https://<호스트>.<tailnet>.ts.net/web-index.html#pairing=...` 형태여야 한다. Tailscale IP의
 `http://100.x.x.x:6768/...` 주소는 HTML이 열려도 Web Crypto 초기화가 중단되어 빈 화면이 된다.
 
-새 서버 이관은 [server-migration.md](../docs/server-migration.md)를 따른다.
-`export-stock-chatbot.sh`는 기존 서비스/데이터를 보존하고, `restore-stock-chatbot.sh`는
-새 서버에 실행 계정을 ubuntu로 맞춰 복원한다. 복원 후 앱 서비스는 정지 상태다.
+새 서버 이관 기록은 [server-migration.md](../docs/server-migration.md)에 있다.

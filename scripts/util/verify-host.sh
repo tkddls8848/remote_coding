@@ -14,16 +14,6 @@ say "Orca 상시 서비스"
 check "orca-serve active" systemctl is-active --quiet orca-serve.service
 check "orca-serve 부팅 시 자동 시작" systemctl is-enabled --quiet orca-serve.service
 check "Orca 실행 계정" test "$(systemctl show orca-serve.service -p User --value)" = "$ORCA_SERVICE_USER"
-if [ "$TELEGRAM_BOT_ENABLED" = 1 ]; then
-  if [ "$TELEGRAM_BOT_START" = 1 ]; then
-    check "Telegram active" systemctl is-active --quiet stock-chatbot.service
-    check "Telegram 부팅 시 자동 시작" systemctl is-enabled --quiet stock-chatbot.service
-  else
-    check "Telegram 전환 전 정지" test "$(systemctl show stock-chatbot.service -p ActiveState --value)" = inactive
-  fi
-    check "Telegram 실행 계정" test "$(systemctl show stock-chatbot.service -p User --value)" = "$ORCA_SERVICE_USER"
-    check "Telegram 실행 경로" test "$(systemctl show stock-chatbot.service -p WorkingDirectory --value)" = "$TELEGRAM_BOT_DIR"
-fi
 check "Orca AppImage" test -x /opt/orca/orca-linux.AppImage
 orca_started_at="$(systemctl show orca-serve.service -p ActiveEnterTimestamp --value 2>/dev/null)"
 [ -n "$orca_started_at" ] || orca_started_at="15 min ago"

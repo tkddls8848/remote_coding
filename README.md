@@ -11,7 +11,7 @@ AWS Lightsail에 Orca를 24시간 실행하고, 관리 PC의 **웹 브라우저*
                            ├─ orca-serve.service
                            ├─ Codex / Claude Code
                            ├─ /home/ubuntu/workspace/*
-                           └─ stock-chatbot.service (ubuntu, /srv/stock-chatbot)
+                           └─ (입주 앱: 자기 저장소가 소유)
 
 관리 PC VS Code ─ Tailscale SSH ──> ubuntu 계정 (같은 workspace 편집)
 
@@ -22,12 +22,13 @@ AWS Lightsail에 Orca를 24시간 실행하고, 관리 PC의 **웹 브라우저*
 공인 방화벽에 열지 않으며, 같은 Tailscale tailnet의 브라우저만 접근한다. Orca Remote
 Server/Web Client는 Beta이므로 서버를 공개 인터넷에 직접 노출하지 않는다.
 
-Orca와 Telegram 봇은 Lightsail 기본 계정 `ubuntu`로 실행한다. `ubuntu`에는
-sudo 권한(`NOPASSWD:ALL`)과 로컬 비밀번호 `ubuntu`를 설정한다. SSH는 기존 Lightsail
-공개키를 사용한다. 봇은 `08-telegram-bot.sh`가 저장소 전체를 `/srv/stock-chatbot`에
-클론하고 Python 가상환경과 `stock-chatbot.service`를 설치한다. 기본값은 전환 전 정지이며,
-기존 봇을 멈춘 뒤 `TELEGRAM_BOT_START=1`로 시작한다.
-공개 웹·쇼츠 등 나머지 앱 서비스는 `stock_chatbot/infra/`에서 관리한다.
+Orca는 Lightsail 기본 계정 `ubuntu`로 실행한다. `ubuntu`에는 sudo 권한(`NOPASSWD:ALL`)과
+로컬 비밀번호 `ubuntu`를 설정한다. SSH는 기존 Lightsail 공개키를 사용한다.
+
+**이 호스트는 인프라 비용 때문에 다른 프로젝트와 공유한다.** 입주 앱의 설치·유닛·점검·운영
+문서는 **그 앱의 저장소가 소유한다.** 이 저장소는 인스턴스·고정 IP·공인 방화벽·스냅샷·Orca·
+Tailscale·OS 계정까지만 책임진다. 현재 입주 앱은 `stock_chatbot` 하나이며 그 운영 기준은
+해당 저장소의 `infra/`에 있다.
 
 **AWS 자원을 만드는 Terraform은 이 저장소 하나뿐이다.** 입주 앱 저장소는 같은 자원을
 선언하지 않고(Lightsail 공개 포트 API는 규칙 전체를 교체하므로 나중에 apply한 쪽이 상대의
@@ -67,7 +68,6 @@ sudo -u ubuntu -H /bin/bash -c 'cd "$HOME" && exec gh auth login'
 
 # 장애 알림, 자원 감시, 보안 이벤트 감사
 ./install/07-monitoring.sh
-./install/08-telegram-bot.sh
 
 ./util/verify-host.sh
 sudo ./util/show-orca-access.sh
@@ -81,28 +81,7 @@ sudo ./util/show-orca-access.sh
 `03-private-network.sh`는 최초 인증 때부터 이 이름을 적용하고 제어면 반영을 기다린 뒤 종료하므로,
 Orca pairing URL과 Tailscale Serve 주소가 임시 EC2 호스트명(`ip-172-...`)으로 굳지 않는다.
 
-## Telegram 배포
-
-`scripts/config.env`에서 로컬 비밀 설정 파일을 지정하고 `sync-host.sh`를 실행한다:
-
-```bash
-TELEGRAM_BOT_ENV_FILE=C:/Users/PSI/orca/stock_chatbot/.env
-```
-
-이 파일은 SSH로 `~/remote-lightsail-secrets/telegram.env`에 전송한다(디렉터리 0700,
-파일 0600). 08 단계가 앱 루트 `.env`로 설치한다. 기존 서버 `.env`가 있으면 새 파일
-전송 없이도 설치할 수 있다. 토큰과 chat ID는 필수다.
-
-GitHub에 push된 `TELEGRAM_BOT_REF`(기본 `main`)를 배포하므로 로컬 미커밋 변경은
-포함되지 않는다. `telegram_bot/`만 복사하면 의존 파일이 빠지므로 저장소 전체를 받는다.
-재배포도 `./install/08-telegram-bot.sh`로 실행한다. 작업 트리에 변경이 있거나 브랜치가
-다르면 중단하고, 정상 체크아웃은 fast-forward로만 갱신한다. `.env`와 `data/`는 유지한다.
-로컬에서 사용 중인 봇은 서버 시작 전에 종료해야 같은 토큰의 polling 충돌을 피할 수 있다.
-관심종목·발송 이력 등 기존 `data/`는 Git에 없으므로 필요하면 별도로 옮긴다.
-
-`provision-host.sh`는 인프라 생성과 파일 전송까지 한다. 출력된 서버 설치 순서의
-08 단계는 기본적으로 설치만 수행한다. `TELEGRAM_BOT_START=1`일 때만 봇을 시작한다. `TELEGRAM_BOT_ENABLED=0`은 설치를 건너뛸 뿐
-이미 실행 중인 봇을 중지하지 않는다.
+## 서비스 계정
 
 새 서버의 `config.env`는 아래 값으로 설정한다. 기존 운영 서버는 이관 완료 전까지 유지한다:
 
@@ -120,7 +99,7 @@ ORCA_SERVICE_SUDO=nopasswd
 
 `06-vscode-remote.sh`는 `ubuntu`의 기존 `authorized_keys`를 유지하고 SSH 키 인증을
 설정한다. `ORCA_SSH_PUBLIC_KEY`로 키를 추가할 수도 있다. `verify-host.sh`는
-두 서비스의 실행 계정과 자동 시작 여부를 함께 확인한다.
+Orca의 실행 계정과 자동 시작 여부를 확인한다.
 
 ```sshconfig
 Host orca
