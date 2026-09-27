@@ -40,7 +40,9 @@ sudo ./util/show-orca-access.sh
   `verify-host.sh` 일일 실행. 알림은 `ALERT_WEBHOOK`으로 나가고 비어 있으면
   `/var/log/orca-alert.log`에만 남는다.
 
-`config.env`는 로컬 전용이다. `sync-host.sh`가 서버 설정을 `host.env`(0600)로 전송한다.
+환경 설정은 저장소 최상위 `.env` 하나에서 관리한다. `.env.example`은 값의 형식을 보여 주는 템플릿이다.
+`sync-host.sh`는 서버 배포 디렉터리 최상위에 `.env`(0600)를 생성하고 `scripts/`에 실행 스크립트를 복사한다.
+`/etc/orca`의 서비스 실행용 설정은 설치 스크립트가 자동 생성하므로 직접 관리하지 않는다.
 비밀값은 커밋하지 않는다.
 
 `ORCA_SSH_PUBLIC_KEY`에 파일 경로를 적으면 `sync-host.sh`가 내용으로 풀어 보낸다(서버는
@@ -62,7 +64,7 @@ sudo ./util/show-orca-access.sh
 | 스크립트 | 실행 위치 | 하는 일 |
 |---|---|---|
 | `provision-host.sh` | 로컬 | Terraform apply → SSH 대기 → 스크립트 복사 |
-| `sync-host.sh` | 로컬 | `install/`·`util/`·`host.env`(0600)를 서버로 복사 |
+| `sync-host.sh` | 로컬 | `install/`·`util/`·`.env`(0600)를 서버로 복사 |
 | `update-admin-ip.sh` | 로컬 | 현재 공인 IP 감지 → `terraform.tfvars` 의 `my_ip` 갱신 → `apply` |
 | `verify-host.sh` | 서버 | 서비스·사설망·CLI·보안 통제·드리프트 전체 점검 |
 | `backup-orca.sh` | 서버 | Orca 프로필 아카이브 → (선택) S3 업로드 |
@@ -88,7 +90,7 @@ S3 로 복사하면 자격증명의 사본이 하나 더 생기고 그 버킷이
 
 ```powershell
 $serverIp = terraform -chdir=terraform output -raw static_ip
-ssh "ubuntu@$serverIp" "sudo ~/remote-lightsail-scripts/util/show-orca-access.sh --url-only" | Set-Clipboard
+ssh "ubuntu@$serverIp" "sudo ~/remote-lightsail-scripts/scripts/util/show-orca-access.sh --url-only" | Set-Clipboard
 ```
 
 Web Client가 빈 화면이면 서버에서 `sudo ./util/diagnose-web-client.sh`를 실행한다. 이 진단은

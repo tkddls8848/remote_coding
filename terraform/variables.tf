@@ -138,7 +138,7 @@ variable "auto_snapshot_time" {
 
     **입주 앱과의 계약.** 입주 앱은 자기 데이터 백업을 이 시각보다 앞에 끝내도록
     잡는다(현재 stock_chatbot 은 18:00 UTC). 호스트 타임존은 UTC 고정이므로
-    (scripts/config.env 의 HOST_TIMEZONE) 앱의 cron 시각도 UTC 로 읽힌다.
+    (.env 의 HOST_TIMEZONE) 앱의 cron 시각도 UTC 로 읽힌다.
     이 값을 바꾸면 입주 앱 저장소의 백업 시각도 함께 옮긴다.
   EOT
   type        = string

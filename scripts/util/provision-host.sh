@@ -15,7 +15,7 @@
 
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-TF_DIR="$(cd "$TF_DIR" && pwd)"
+TERRAFORM_DIR="$(cd "$TERRAFORM_DIR" && pwd)"
 
 AUTO_APPROVE=0
 PHASE=""
@@ -66,24 +66,24 @@ fi
 
 # terraform.tfvars 에서 값 하나를 읽는다 (없으면 빈 문자열).
 tfvar() {
-    [ -f "$TF_DIR/terraform.tfvars" ] || return 0
+    [ -f "$TERRAFORM_DIR/terraform.tfvars" ] || return 0
     sed -n -E "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*\"([^\"]*)\".*/\1/p" \
-        "$TF_DIR/terraform.tfvars" | tail -1
+        "$TERRAFORM_DIR/terraform.tfvars" | tail -1
 }
 
-if [ ! -f "$TF_DIR/terraform.tfvars" ]; then
-    cp "$TF_DIR/terraform.tfvars.example" "$TF_DIR/terraform.tfvars"
-    warn "terraform.tfvars 가 없어 예시를 복사했다: $TF_DIR/terraform.tfvars"
+if [ ! -f "$TERRAFORM_DIR/terraform.tfvars" ]; then
+    cp "$TERRAFORM_DIR/terraform.tfvars.example" "$TERRAFORM_DIR/terraform.tfvars"
+    warn "terraform.tfvars 가 없어 예시를 복사했다: $TERRAFORM_DIR/terraform.tfvars"
     warn "인스턴스 이름이나 리전을 바꾸려면 지금 수정하고 다시 실행할 것."
 fi
 
-if [ ! -f "$SCRIPT_DIR/config.env" ]; then
-    cp "$SCRIPT_DIR/config.example.env" "$SCRIPT_DIR/config.env"
-    warn "config.env 가 없어 예시를 복사했다: $SCRIPT_DIR/config.env"
+if [ ! -f "$ENV_FILE" ]; then
+    (umask 077; cp "$ROOT_DIR/.env.example" "$ENV_FILE")
+    warn ".env 가 없어 예시를 복사했다: $ENV_FILE"
     warn "클론할 레포 목록(REPOS)은 install/05-repos.sh 실행 전에 맞춰 둘 것."
     # 이 실행에서 바로 반영한다.
     # shellcheck disable=SC1091
-    . "$SCRIPT_DIR/config.env"
+    . "$ENV_FILE"
 fi
 
 # SSH 키: terraform 이 file() 로 읽는 공개키와, 접속에 쓸 개인키가 모두 있어야 한다.
@@ -110,21 +110,21 @@ if [ "$SKIP_APPLY" -eq 1 ]; then
     say "인프라 생성 건너뜀 (--skip-apply)"
 else
     say "terraform init"
-    terraform -chdir="$TF_DIR" init -input=false
+    terraform -chdir="$TERRAFORM_DIR" init -input=false
 
     apply_args=(-input=false)
     [ -n "$PHASE" ] && apply_args+=(-var "phase=$PHASE")
     [ "$AUTO_APPROVE" -eq 1 ] && apply_args+=(-auto-approve)
 
     say "terraform apply${PHASE:+ (phase=$PHASE)}"
-    terraform -chdir="$TF_DIR" apply "${apply_args[@]}"
+    terraform -chdir="$TERRAFORM_DIR" apply "${apply_args[@]}"
     ok "인프라 반영 완료"
 fi
 
 STATIC_IP="$(tf_output static_ip)"
 [[ "$STATIC_IP" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] \
     || die "static_ip output 을 읽지 못했다 (값: '${STATIC_IP:-<빈 값>}').
-  terraform -chdir=\"$TF_DIR\" output 으로 상태를 확인할 것."
+  terraform -chdir=\"$TERRAFORM_DIR\" output 으로 상태를 확인할 것."
 export STATIC_IP
 ok "고정 IP $STATIC_IP"
 
@@ -167,7 +167,7 @@ cat <<TXT
 여기까지가 자동 구간이다. 다음은 서버에서 사람이 직접 실행한다:
 
   ssh ubuntu@$STATIC_IP
-  cd ~/remote-lightsail-scripts
+  cd ~/remote-lightsail-scripts/scripts
   ./install/01-host-base.sh
   ./install/02-agent-cli.sh
   ./install/03-private-network.sh  # 최초 실행 시 브라우저 인증 포함

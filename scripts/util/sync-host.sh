@@ -35,7 +35,7 @@ REPOS_LIMIT="${REPOS_LIMIT:-300}"
 REPOS_INCLUDE_FORKS="${REPOS_INCLUDE_FORKS:-0}"
 REPOS_INCLUDE_ARCHIVED="${REPOS_INCLUDE_ARCHIVED:-0}"
 GITHUB_OWNER="${GITHUB_OWNER:-}"
-ORCA_VERSION="${ORCA_VERSION:-v1.4.188}"
+ORCA_VERSION="${ORCA_VERSION:-latest}"
 ORCA_PORT="${ORCA_PORT:-6768}"
 ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-ubuntu}"
 ORCA_SERVICE_SUDO="${ORCA_SERVICE_SUDO:-nopasswd}"
@@ -61,7 +61,7 @@ BACKUP_KMS_KEY_ID="${BACKUP_KMS_KEY_ID:-}"
 BACKUP_INCLUDE_CREDENTIALS="${BACKUP_INCLUDE_CREDENTIALS:-0}"
 BACKUP_LOCAL_DIR="${BACKUP_LOCAL_DIR:-/var/backups/orca}"
 TXT
-# 아래 값들은 셸 메타문자·줄바꿈·비밀을 담을 수 있다. host.env 는 그대로 source 되므로
+# 아래 값들은 셸 메타문자·줄바꿈·비밀을 담을 수 있다. .env 는 그대로 source 되므로
 # 인용해서 쓴다.
 printf 'ORCA_SERVICE_PASSWORD=%q\n'  "${ORCA_SERVICE_PASSWORD:-}"  >> "$tmp"
 printf 'ORCA_SUDO_WHITELIST=%q\n'    "${ORCA_SUDO_WHITELIST:-}"    >> "$tmp"
@@ -81,12 +81,12 @@ if [ -n "$vscode_key" ]; then
 fi
 printf 'ORCA_SSH_PUBLIC_KEY=%q\n'    "$vscode_key"                 >> "$tmp"
 
-ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'rm -rf ~/remote-lightsail-scripts && mkdir -p ~/remote-lightsail-scripts'
+ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'rm -rf ~/remote-lightsail-scripts && mkdir -p ~/remote-lightsail-scripts/scripts'
 ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'chmod 700 ~/remote-lightsail-scripts'
-scp "${SSH_ARGS[@]}" -qr "$SCRIPT_DIR"/install "$SCRIPT_DIR"/util "ubuntu@$STATIC_IP:~/remote-lightsail-scripts/"
-scp "${SSH_ARGS[@]}" -q "$tmp" "ubuntu@$STATIC_IP:~/remote-lightsail-scripts/host.env"
-# host.env 는 이제 서비스 계정 비밀번호를 담으므로 ubuntu 만 읽게 한다.
-ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'find ~/remote-lightsail-scripts -type f -name "*.sh" -exec chmod +x {} + && chmod 600 ~/remote-lightsail-scripts/host.env'
+scp "${SSH_ARGS[@]}" -qr "$SCRIPT_DIR"/install "$SCRIPT_DIR"/util "ubuntu@$STATIC_IP:~/remote-lightsail-scripts/scripts/"
+scp "${SSH_ARGS[@]}" -q "$tmp" "ubuntu@$STATIC_IP:~/remote-lightsail-scripts/.env"
+# .env 는 이제 서비스 계정 비밀번호를 담으므로 ubuntu 만 읽게 한다.
+ssh "${SSH_ARGS[@]}" "ubuntu@$STATIC_IP" 'find ~/remote-lightsail-scripts -type f -name "*.sh" -exec chmod +x {} + && chmod 600 ~/remote-lightsail-scripts/.env'
 ok "복사 완료"
 
 # 단독 실행할 때만 다음 단계를 안내한다. provision-host.sh가 호출한 경우에는
@@ -97,7 +97,7 @@ cat <<TXT
 서버에 붙어서 순서대로 실행한다:
 
   ssh ubuntu@$STATIC_IP
-  cd ~/remote-lightsail-scripts
+  cd ~/remote-lightsail-scripts/scripts
   ./install/01-host-base.sh  # 툴체인 + 스왑 + Node
   ./install/02-agent-cli.sh  # Claude/Codex CLI 설치 (로그인은 사람이 직접)
   ./install/03-private-network.sh  # 최초 실행 시 인증 URL을 출력하고 완료될 때까지 대기

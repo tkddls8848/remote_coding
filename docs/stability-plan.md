@@ -255,7 +255,7 @@ A 와 B 는 모두 6.1 때문에 "계정 침해"에서 멈추지 않고 "호스�
 이 계정은 동시에 (a) 자율 코딩 에이전트의 실행 계정이고, (b) VS Code Remote-SSH 접속
 계정이며, (c) 입주 앱과 호스트를 공유한다.
 
-**이것은 사고가 아니라 의식적 선택이다.** `config.example.env` 와 `lib.sh` 주석이 트레이드오프를
+**이것은 사고가 아니라 의식적 선택이다.** `.env.example` 와 `lib.sh` 주석이 트레이드오프를
 이미 명시하고 있다 — headless 에이전트는 sudo 비밀번호를 입력할 방법이 없다. 이 항목의 목적은
 그 결정을 뒤집는 것이 아니라 **수용한 잔여 위험을 문서로 고정하고 보완 통제를 두는 것**이다.
 
@@ -266,7 +266,7 @@ A 와 B 는 모두 6.1 때문에 "계정 침해"에서 멈추지 않고 "호스�
 - 사후 추적 수단이 없다. 누가·무엇을 root 로 실행했는지 남지 않는다 (6.6 참조)
 
 **개선 방향:**
-1. **안전한 기본값으로 전환** — `lib.sh:35` 의 기본을 `off` 로 두고 필요한 쪽이 `config.env` 에서
+1. **안전한 기본값으로 전환** — `lib.sh:35` 의 기본을 `off` 로 두고 필요한 쪽이 `.env` 에서
    명시적으로 켜게 한다. 현행은 모르고 설치하면 무암호 root 다.
 2. **전면 허용 대신 명령 화이트리스트** — 에이전트에게 실제로 필요한 것은 자기 유닛 재시작과
    패키지 설치 정도다. `NOPASSWD:ALL` 대신 sudoers 에 명령을 열거한다.
@@ -446,7 +446,7 @@ OOMPolicy=stop
 
 ### 6.9 Orca 서비스 계정 비밀번호 (Low — 재평가)
 
-**위치:** `scripts/install/04-orca-server.sh`, `scripts/config.example.env`, `lib.sh:28`
+**위치:** `scripts/install/04-orca-server.sh`, `.env.example`, `lib.sh:28`
 
 **현상:** `ORCA_SERVICE_PASSWORD` 가 설정되면 `su - orca` 경로가 열린다.
 
@@ -458,7 +458,7 @@ OOMPolicy=stop
 **개선 방향:**
 1. 6.1 을 먼저 처리한다. 그 다음 이 항목을 재평가한다
 2. 비밀번호를 쓴다면 `04-orca-server.sh` 에 최소 길이·복잡도 검증을 추가한다
-3. `config.example.env` 에 안전한 생성 명령 예시를 넣는다 (`openssl rand -base64 32`)
+3. `.env.example` 에 안전한 생성 명령 예시를 넣는다 (`openssl rand -base64 32`)
 4. `/etc/security/access.conf` 로 `su` 경로 자체를 제한하는 것도 검토한다
 
 ---
@@ -510,7 +510,7 @@ OOMPolicy=stop
 
 ### 8.1 Orca 버전 업데이트 절차 반자동화 (Medium)
 
-**위치:** `docs/lightsail-plan.md` 섹션 7, `scripts/config.example.env`  
+**위치:** `docs/lightsail-plan.md` 섹션 7, `.env.example`
 **현상:** `ORCA_VERSION`을 수동으로 변경 후 `04-orca-server.sh` 재실행이 필요하다. 최신 버전 확인 방법이 없다.
 
 **개선 방향:**
@@ -587,7 +587,7 @@ sudo journalctl -u orca-serve -n 30 --no-pager | grep orca_server_ready
 sudo tailscale serve status
 
 # 전체 점검
-cd ~/remote-lightsail-scripts
+cd ~/remote-lightsail-scripts/scripts
 ./util/verify-host.sh
 sudo ./util/diagnose-web-client.sh
 ```
@@ -747,15 +747,15 @@ Persistent=true
 | 5.1 | systemd `OnFailure` 훅 + 5분 주기 상태 확인 + 웹훅 알림 경로 | `install/04`(`OnFailure=`), `install/07` |
 | 5.2 | 디스크 임계 알림, journald `SystemMaxUse`, workspace 증가 추적 | `install/01`, `install/07` |
 | 5.3 | `MemoryHigh`/`MemoryMax`/`OOMPolicy=stop` **먼저**, 그다음 sysstat·스왑·OOM 감시 | `install/04`, `install/07` |
-| 6.1 | `whitelist` sudo 모드 신설, sudo I/O 로깅 기본 on | `lib.sh`, `install/04`, `config.example.env` |
-| 6.2 | `REPOS=all` 에서 포크·보관 기본 제외(`--source --no-archived`), 명시 목록 권장 | `install/05`, `config.example.env`, README |
+| 6.1 | `whitelist` sudo 모드 신설, sudo I/O 로깅 기본 on | `lib.sh`, `install/04`, `.env.example` |
+| 6.2 | `REPOS=all` 에서 포크·보관 기본 제외(`--source --no-archived`), 명시 목록 권장 | `install/05`, `.env.example`, README |
 | 6.3 | `orca` 전용 SSH 키 필수화, 키 중복 검사, 교체 절차 문서화 | `install/06`, `verify-host.sh`, `docs/lightsail-plan.md` 4.3 |
 | 6.4 | 유닛 하드닝 (sudo 정책에 따라 단계적), 메모리 상한 | `install/04` |
 | 6.5 | `ufw logging low` — 반출 탐지 | `install/04` |
 | 6.6 | auditd 최소 규칙, SSH 로그인 알림, `verify-host.sh` 드리프트 검사 | `install/07`, `install/04`·`06`(기준값), `verify-host.sh` |
-| 6.7 | 토큰 유효성 실제 API 호출 + 주간 점검, Fine-grained PAT 안내 | `verify-host.sh`, `install/07`, `config.example.env` |
+| 6.7 | 토큰 유효성 실제 API 호출 + 주간 점검, Fine-grained PAT 안내 | `verify-host.sh`, `install/07`, `.env.example` |
 | 6.8 | 페어링 URL 보관·재발급 절차 | `docs/lightsail-plan.md` 5절 |
-| 6.9 | 비밀번호 최소 길이 검증, `openssl rand` 예시 | `install/04`, `config.example.env` |
+| 6.9 | 비밀번호 최소 길이 검증, `openssl rand` 예시 | `install/04`, `.env.example` |
 | 7.1 | `util/backup-orca.sh` (+ KMS·버킷 통제 안내, 자격증명 기본 제외) | `scripts/util/backup-orca.sh` |
 | 7.2 | 복구 체크리스트와 분기 드릴 절차 | `docs/lightsail-plan.md` 8.1~8.2 |
 | 8.1 | `util/check-orca-update.sh` + 주간 타이머 | `scripts/util/check-orca-update.sh`, `install/07` |
@@ -813,7 +813,7 @@ Persistent=true
 ./scripts/util/sync-host.sh
 
 # 서버 (ubuntu)
-cd ~/remote-lightsail-scripts
+cd ~/remote-lightsail-scripts/scripts
 ./install/01-host-base.sh      # journald 한도
 ./install/04-orca-server.sh    # sudo 로깅, 체크섬, 유닛 하드닝, 기준값
 ./install/05-repos.sh          # 포크 제외 재열거
@@ -822,7 +822,7 @@ cd ~/remote-lightsail-scripts
 ./util/verify-host.sh
 ```
 
-`04` 를 돌리면 새 SHA256 을 출력한다. `config.env` 의 `ORCA_SHA256` 에 옮겨 적고
+`04` 를 돌리면 새 SHA256 을 출력한다. `.env` 의 `ORCA_SHA256` 에 옮겨 적고
 `sync-host.sh` 를 한 번 더 돌리면 다음 설치부터 검증된다.
 
 `06` 은 `ORCA_SSH_PUBLIC_KEY` 가 없으면 중단한다. 기존 호스트에서 `ubuntu` 키로 붙어 있었다면

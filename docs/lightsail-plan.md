@@ -11,7 +11,7 @@
 | AWS 리전 / OS | `ap-northeast-1` (도쿄) / Ubuntu 24.04 |
 | 기본 번들 | `medium_3_0` — 4GB RAM, 2 vCPU |
 | swap | `/swapfile` 4GB |
-| Orca | `v1.4.188`, `/opt/orca/orca-linux.AppImage` |
+| Orca | `ORCA_VERSION=latest` (최신 안정판), `/opt/orca/orca-linux.AppImage` |
 | 서비스 계정 | `orca` (`/home/orca`) |
 | 서비스 | `orca-serve.service`, `tailscaled.service` |
 | 내부 포트 | Orca `6768`; Lightsail 공인 방화벽에는 미개방 |
@@ -61,9 +61,8 @@ Lightsail Ubuntu 24.04 / medium_3_0
 ```text
 .
 ├─ terraform/             # 인스턴스, 고정 IP, 키페어, 공인 방화벽, 자동 스냅샷
-│  └─ iam-policy.json     # 위 자원에 필요한 Lightsail 권한 (도쿄 리전으로 제한)
+├─ .env.example           # 최상위 .env로 복사할 환경 설정 템플릿
 ├─ scripts/
-│  ├─ config.example.env  # 호스트 타임존, Orca 버전과 클론 대상 예시
 │  ├─ install/            # 서버 설치 01~07
 │  └─ util/               # 프로비저닝, 동기화, URL 조회, 진단, 검증
 └─ docs/                  # 운영 기준과 별도 통합 계획
@@ -74,7 +73,7 @@ Lightsail Ubuntu 24.04 / medium_3_0
   값(공개 웹·스냅샷 시각·타임존)은 `terraform/README.md`의 계약 표를 따른다.
 - 호스트 패키지, Tailscale, Orca, 개발 CLI와 개발 클론은 `scripts/`가 관리한다.
 - Codex·GitHub·Tailscale 자격증명과 Orca pairing URL은 Terraform 변수나 Git 파일에 넣지 않는다.
-- `terraform.tfvars`, Terraform state, `scripts/config.env`는 로컬 실행 상태이므로 커밋하지 않는다.
+- `terraform.tfvars`, Terraform state, `.env`는 로컬 실행 상태이므로 커밋하지 않는다.
 
 ## 4. 신규 구축
 
@@ -84,7 +83,7 @@ Lightsail Ubuntu 24.04 / medium_3_0
 
 ```powershell
 Copy-Item terraform\terraform.tfvars.example terraform\terraform.tfvars
-Copy-Item scripts\config.example.env scripts\config.env
+Copy-Item .env.example .env
 
 & "C:\Program Files\Git\bin\bash.exe" ./scripts/util/provision-host.sh
 ```
@@ -94,14 +93,14 @@ Copy-Item scripts\config.example.env scripts\config.env
 1. Terraform/AWS/SSH 전제 확인
 2. `terraform init/apply`
 3. 새 호스트의 SSH 대기
-4. `install/`, `util/`, 비밀이 아닌 `host.env`를 서버로 복사
+4. `scripts/install/`, `scripts/util/`, 최상위 `.env`(0600)를 서버로 복사
 
 계정 로그인과 `install/*.sh` 실행은 서버에서 사람이 완료한다.
 
 ### 4.2 서버
 
 ```bash
-cd ~/remote-lightsail-scripts
+cd ~/remote-lightsail-scripts/scripts
 ./install/01-host-base.sh
 ./install/02-agent-cli.sh
 ./install/03-private-network.sh  # 최초 실행 시 인증 URL을 출력하고 완료될 때까지 대기
@@ -164,12 +163,12 @@ Codex device URL과 GitHub device URL도 관리 PC 브라우저에서 연다. Ap
   `Match` 블록으로 끝내면 메인 설정의 나머지가 전부 그 블록 안으로 들어간다.
 - 스크립트는 드롭인을 쓴 뒤 `sshd -t`로 검증하고, 실패하면 드롭인을 지우고 중단한다.
   기존 SSH 세션은 유지되므로 잠기지 않는다.
-- **공개키는 `orca` 전용 키다**(`config.env` 의 `ORCA_SSH_PUBLIC_KEY`). `ubuntu` 의
+- **공개키는 `orca` 전용 키다**(`.env` 의 `ORCA_SSH_PUBLIC_KEY`). `ubuntu` 의
   `authorized_keys` 를 복사하면 키 하나가 두 계정을 동시에 열고, `orca` 는 sudo 를 가지므로
   `ubuntu` 키 탈취 한 번이 그대로 호스트 root 와 `/srv/<앱>/.env` 까지 간다. 키를 적지 않으면
   스크립트는 진행하지 않고 중단한다. 옛 동작이 필요하면 `ORCA_SSH_REUSE_ADMIN_KEY=1` 로
   의식적으로 켠다. 스크립트와 `verify-host.sh` 모두 두 계정의 키가 겹치는지 확인한다.
-- `orca`의 sudo는 `config.env`의 `ORCA_SERVICE_SUDO`로 선언한다 — `nopasswd`(기본, 그룹 +
+- `orca`의 sudo는 `.env`의 `ORCA_SERVICE_SUDO`로 선언한다 — `nopasswd`(기본, 그룹 +
   `NOPASSWD:ALL` 드롭인), `whitelist`(열거한 명령만 NOPASSWD), `password`(그룹만),
   `off`(그룹에서 제외). `04-orca-server.sh`가 매 실행 그 상태로 맞추고, 드롭인은 임시 파일에서
   `visudo -c`를 통과한 것만 설치한다(문법 오류 하나로 호스트의 sudo 전체가 잠기기 때문이다).
@@ -182,7 +181,7 @@ Codex device URL과 GitHub device URL도 관리 PC 브라우저에서 연다. Ap
   임의의 프로세스를 고르게 두는 대신 한도를 넘은 이 서비스만 예측 가능하게 멈추게 한다.
   `NoNewPrivileges` 와 `ProtectSystem`·`ProtectHome` 계열은 sudo 경로 자체를 막으므로
   `ORCA_SERVICE_SUDO=off` 일 때만 켜진다 — 순서를 지키지 않으면 서비스가 아니라 운영이 막힌다.
-- `04-orca-server.sh`가 `config.env`(서버에서는 `host.env`)의 `ORCA_SERVICE_PASSWORD`로 계정
+- `04-orca-server.sh`가 최상위 `.env`의 `ORCA_SERVICE_PASSWORD`로 계정
   비밀번호를 맞춘다. 값은 커밋하지 않으며 비어 있으면 계정을 잠긴 채 둔다. 쓰임새는
   `su - orca` 하나뿐이다. 드롭인이 이 계정의 SSH 비밀번호 인증을 끄므로 원격 로그인 경로는
   공개키뿐이며, `verify-host.sh`가 둘(비밀번호 설정됨 / SSH 비밀번호 인증 차단)을 함께
@@ -204,7 +203,7 @@ Codex device URL과 GitHub device URL도 관리 PC 브라우저에서 연다. Ap
 ```bash
 # 관리 PC
 ssh-keygen -t ed25519 -f ~/.ssh/orca_vscode_new -C "vscode->orca"
-# scripts/config.env: ORCA_SSH_PUBLIC_KEY=~/.ssh/orca_vscode_new.pub
+# .env: ORCA_SSH_PUBLIC_KEY=~/.ssh/orca_vscode_new.pub
 ./scripts/util/sync-host.sh
 
 # 서버 (ubuntu)
@@ -239,7 +238,7 @@ ssh ubuntu@<static_ip> "sed -i '/<옛 키>/d' ~/.ssh/authorized_keys"
 
 ```powershell
 $serverIp = terraform -chdir=terraform output -raw static_ip
-ssh "ubuntu@$serverIp" "sudo ~/remote-lightsail-scripts/util/show-orca-access.sh --url-only" | Set-Clipboard
+ssh "ubuntu@$serverIp" "sudo ~/remote-lightsail-scripts/scripts/util/show-orca-access.sh --url-only" | Set-Clipboard
 ```
 
 정상 URL은 다음 형태다.
@@ -265,7 +264,7 @@ URL 은 런타임 접근 capability 다. "비밀번호처럼 취급"은 보관 �
 
   ```powershell
   $serverIp = terraform -chdir=terraform output -raw static_ip
-  ssh "ubuntu@$serverIp" "sudo ~/remote-lightsail-scripts/util/show-orca-access.sh --url-only" | Set-Clipboard
+  ssh "ubuntu@$serverIp" "sudo ~/remote-lightsail-scripts/scripts/util/show-orca-access.sh --url-only" | Set-Clipboard
   ```
 
 - **재발급**은 서비스 재시작이다. 유출이 의심되면 즉시 돌린다 — 이전 URL 은 무효가 된다.
@@ -285,7 +284,7 @@ URL 은 런타임 접근 capability 다. "비밀번호처럼 취급"은 보관 �
 ### 서버 전체 점검
 
 ```bash
-cd ~/remote-lightsail-scripts
+cd ~/remote-lightsail-scripts/scripts
 ./util/verify-host.sh
 sudo ./util/diagnose-web-client.sh
 ```
@@ -368,10 +367,10 @@ sudo ./util/backup-orca.sh                  # 프로필 백업
 
 1. Lightsail 수동 스냅샷을 만든다 — 이름은 `orca-host-YYYYMMDD-preupgrade`.
 2. `sudo ./util/backup-orca.sh` 로 Orca 프로필을 백업한다.
-3. `scripts/config.env`의 `ORCA_VERSION`을 변경하고 `ORCA_SHA256`은 비운다.
+3. 최상위 `.env`의 `ORCA_VERSION=latest`를 유지하고 `ORCA_SHA256`은 비운다. 특정 버전을 고정하려면 태그를 지정한다.
 4. `util/sync-host.sh`로 서버 스크립트를 갱신한다.
-5. `04-orca-server.sh`를 재실행한다. 새 바이너리의 SHA256을 출력하므로 `config.env`의
-   `ORCA_SHA256`에 옮겨 적는다 — 다음 설치부터 그 값으로 검증한다.
+5. `04-orca-server.sh`를 재실행한다. `latest`는 실행 시 안정판을 조회한다.
+   출력된 SHA256을 `.env`에 고정하려면 `ORCA_VERSION`도 해당 태그로 고정한다.
 6. `verify-host.sh`, HTTPS 브라우저 렌더링, 기존 프로젝트 재연결을 확인한다.
 
 다운그레이드는 바이너리만 되돌리지 않는다. 상태 스키마가 바뀔 수 있으므로 같은 시점의 Orca
@@ -407,7 +406,7 @@ git remote 가 이미 사본이고, 커밋되지 않은 변경이 있는 저장�
 
 ```bash
 sudo systemd-run --on-calendar=weekly --unit=orca-backup \
-    /home/ubuntu/remote-lightsail-scripts/util/backup-orca.sh
+    /home/ubuntu/remote-lightsail-scripts/scripts/util/backup-orca.sh
 ```
 
 ## 8. 장애 복구

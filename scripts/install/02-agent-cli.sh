@@ -3,7 +3,7 @@
 #
 #   실행 위치: 서버 (ubuntu 계정)
 #
-# 버전은 config.env 의 CLAUDE_CODE_VERSION / CODEX_VERSION 으로 고정한다. latest 면
+# 버전은 .env 의 CLAUDE_CODE_VERSION / CODEX_VERSION 으로 고정한다. latest 면
 # 매 실행 최신을 받는다 — 재현성이 필요하면 정확한 버전을 적는다.
 # 이미 그 버전이면 재설치하지 않는다 (docs/stability-plan.md 4.2).
 
@@ -39,7 +39,7 @@ install_pkg @anthropic-ai/claude-code "$CLAUDE_CODE_VERSION"
 install_pkg @openai/codex "$CODEX_VERSION"
 
 if [ "$CLAUDE_CODE_VERSION" = latest ] || [ "$CODEX_VERSION" = latest ]; then
-    warn "버전이 latest 다. 배포를 재현 가능하게 하려면 config.env 에 정확한 버전을 적는다:"
+    warn "버전이 latest 다. 배포를 재현 가능하게 하려면 .env 에 정확한 버전을 적는다:"
     warn "  npm view @openai/codex version"
 fi
 

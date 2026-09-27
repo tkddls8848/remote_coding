@@ -8,7 +8,7 @@
 
 . "$(dirname "${BASH_SOURCE[0]}")/../util/lib.sh"
 
-: "${GITHUB_OWNER:?scripts/host.env 에 GITHUB_OWNER 가 없다}"
+: "${GITHUB_OWNER:?.env 에 GITHUB_OWNER 가 없다}"
 REPOS="${REPOS:-all}"
 REPOS_EXCLUDE="${REPOS_EXCLUDE:-}"
 REPOS_LIMIT="${REPOS_LIMIT:-300}"

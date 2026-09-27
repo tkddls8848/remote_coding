@@ -15,11 +15,15 @@ need jq
 NOTIFY=0
 [ "${1:-}" = "--notify" ] && NOTIFY=1
 
-installed="$ORCA_VERSION"
+installed="unknown"
 if [ -r /opt/orca/VERSION ]; then
     installed="$(cat /opt/orca/VERSION)"
 elif sudo test -r /opt/orca/VERSION 2>/dev/null; then
     installed="$(sudo cat /opt/orca/VERSION)"
+fi
+
+if [ "$installed" = unknown ]; then
+    say "설치 버전 기록이 없다. ORCA_VERSION=$ORCA_VERSION 은 설치 정책이다."
 fi
 
 fetch_latest() {
@@ -52,9 +56,9 @@ cat <<TXT
      aws lightsail create-instance-snapshot --region ap-northeast-1 \\
        --instance-name <인스턴스> --instance-snapshot-name orca-host-\$(date -u +%Y%m%d)-preupgrade
   2. ./util/backup-orca.sh 로 프로필을 백업한다
-  3. 로컬 scripts/config.env 의 ORCA_VERSION 을 $latest 로 바꾸고 ORCA_SHA256 은 비운다
+  3. 최상위 .env 의 ORCA_VERSION=latest 를 유지하고 ORCA_SHA256 은 비운다 (버전 고정 시 $latest 지정)
   4. ./util/sync-host.sh
-  5. ./install/04-orca-server.sh   # 새 SHA256 을 출력한다 — config.env 에 옮겨 적는다
+  5. ./install/04-orca-server.sh   # latest는 실행 시 안정판을 조회한다. SHA256 고정은 태그 고정 시에만 한다
   6. ./util/verify-host.sh
 
 다운그레이드는 바이너리만 되돌리지 않는다. 상태 스키마가 바뀔 수 있으므로 같은 시점의

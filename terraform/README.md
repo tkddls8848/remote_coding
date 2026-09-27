@@ -47,7 +47,7 @@ AutoSnapshot 애드온에는 `lightsail:EnableAddOn` 이 필요하다. 이 권�
 | 인스턴스 이름 | `orca-host-tokyo` | `terraform output -raw instance_name` |
 | 자동 스냅샷 시각 | 매일 19:00 UTC | `terraform output -raw auto_snapshot_time_utc` |
 | 공개 웹 80/443 | `enable_public_web` | `terraform output -raw public_web_enabled` |
-| 호스트 타임존 | `UTC` | `scripts/config.env` 의 `HOST_TIMEZONE` |
+| 호스트 타임존 | `UTC` | `.env` 의 `HOST_TIMEZONE` |
 | 입주 앱 배치 | `/srv/<앱>`, 앱 전용 시스템 계정 | 앱 저장소가 소유 |
 
 앱의 데이터 백업은 자동 스냅샷 시각보다 앞에 끝낸다(현재 `stock_chatbot` 은 18:00 UTC).

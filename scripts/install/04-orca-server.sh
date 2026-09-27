@@ -8,6 +8,17 @@ need file
 need jq
 need tailscale
 
+# 실제 태그를 먼저 확정해 다운로드와 VERSION/CHECKSUM 기록에 동일하게 사용한다.
+if [ "$ORCA_VERSION" = latest ]; then
+    [ -z "$ORCA_SHA256" ] || die "latest 사용 시 ORCA_SHA256은 비워 둘 것. 체크섬을 고정하려면 ORCA_VERSION도 태그로 고정한다."
+    release="$(curl -fsSL --retry 3 -H 'Accept: application/vnd.github+json' \
+        https://api.github.com/repos/stablyai/orca/releases/latest)" \
+        || die "Orca 최신 안정판 조회에 실패했다."
+    ORCA_VERSION="$(jq -er 'select(.draft == false and .prerelease == false) | .tag_name | select(type == "string") | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))' <<<"$release")" \
+        || die "Orca 최신 안정판 태그를 확인할 수 없다."
+    ok "최신 안정판 선택: $ORCA_VERSION"
+fi
+
 [[ "$ORCA_PORT" =~ ^[0-9]+$ ]] || die "ORCA_PORT는 숫자여야 한다."
 ((ORCA_PORT >= 1024 && ORCA_PORT <= 65535)) || die "ORCA_PORT는 1024~65535 범위여야 한다."
 [[ "$ORCA_SERVICE_USER" =~ ^[a-z_][a-z0-9_-]*$ ]] || die "ORCA_SERVICE_USER 형식이 잘못되었다."
@@ -104,7 +115,7 @@ fi
 
 # --- sudo 권한 --------------------------------------------------------------
 # 이 계정으로 붙은 사람과 에이전트가 호스트를 직접 관리할 수 있게 할지 결정한다.
-# 정책은 config.env 의 ORCA_SERVICE_SUDO 하나로 선언하고 매 실행 그 상태로 맞춘다.
+# 정책은 .env 의 ORCA_SERVICE_SUDO 하나로 선언하고 매 실행 그 상태로 맞춘다.
 # 그룹 변경은 새로 여는 세션부터 적용된다 (이미 붙어 있는 셸은 다시 로그인해야 한다).
 sudoers_file="/etc/sudoers.d/60-${ORCA_SERVICE_USER}-sudo"
 sudo_log_file="/etc/sudoers.d/55-orca-sudo-log"
@@ -190,7 +201,7 @@ SUDOERS
         [ -n "$cmnd_list" ] || die "ORCA_SUDO_WHITELIST 에 유효한 명령이 없다."
         install_sudoers "$sudoers_file" <<SUDOERS
 # install/04-orca-server.sh 가 생성 (ORCA_SERVICE_SUDO=whitelist).
-# 에이전트에게 실제로 필요한 명령만 NOPASSWD 로 연다. 목록은 config.env 의
+# 에이전트에게 실제로 필요한 명령만 NOPASSWD 로 연다. 목록은 .env 의
 # ORCA_SUDO_WHITELIST 하나에서만 바꾼다. docs/stability-plan.md 6.1-2.
 $ORCA_SERVICE_USER ALL=(ALL) NOPASSWD: $cmnd_list
 SUDOERS
@@ -243,7 +254,7 @@ grep -Fq "$machine_pattern" <<<"$file_info" || die "다운로드 파일 아키�
 downloaded_bytes="$(stat -c %s "$tmp")"
 if [ "$downloaded_bytes" -lt "$ORCA_MIN_BYTES" ]; then
     die "내려받은 파일이 너무 작다 (${downloaded_bytes}B < ${ORCA_MIN_BYTES}B) — 불완전 다운로드로 본다.
-  값이 실제로 바뀐 릴리스라면 config.env 의 ORCA_MIN_BYTES 를 조정할 것."
+  값이 실제로 바뀐 릴리스라면 .env 의 ORCA_MIN_BYTES 를 조정할 것."
 fi
 
 actual_sha="$(sha256sum "$tmp" | awk '{print $1}')"
@@ -271,11 +282,11 @@ if [ -n "$expected_sha" ]; then
     ok "SHA256 검증 통과 ($actual_sha)"
 elif [ "$ORCA_REQUIRE_CHECKSUM" = 1 ]; then
     die "기대 SHA256 을 구하지 못했고 ORCA_REQUIRE_CHECKSUM=1 이다 — 설치하지 않았다.
-  config.env 의 ORCA_SHA256 에 값을 적거나 릴리스의 체크섬 파일명을 확인할 것.
+  .env 의 ORCA_SHA256 에 값을 적거나 릴리스의 체크섬 파일명을 확인할 것.
   현재 파일의 값: $actual_sha"
 else
     warn "이 릴리스에서 기대 SHA256 을 구하지 못했다 (체크섬 파일 없음, ORCA_SHA256 비어 있음)."
-    warn "지금 값을 config.env 의 ORCA_SHA256 에 적어 두면 다음 설치부터 검증된다:"
+    warn "아래 체크섬을 .env에 고정하려면 ORCA_VERSION=$ORCA_VERSION 도 함께 지정할 것:"
     warn "  ORCA_SHA256=$actual_sha"
 fi
 

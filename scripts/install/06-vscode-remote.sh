@@ -57,7 +57,7 @@ fi
 #
 # 관리 PC에서:
 #   ssh-keygen -t ed25519 -f ~/.ssh/orca_vscode -C "vscode->orca"
-# 그리고 config.env 에:
+# 그리고 .env 에:
 #   ORCA_SSH_PUBLIC_KEY=~/.ssh/orca_vscode.pub
 admin_home="$(getent passwd ubuntu | cut -d: -f6)"
 [ -n "$admin_home" ] || die "ubuntu 계정을 찾지 못했다. Lightsail 기본 관리 계정이 필요하다."
@@ -72,7 +72,7 @@ if [ -n "$ORCA_SSH_PUBLIC_KEY" ]; then
         *)
             [ -f "$ORCA_SSH_PUBLIC_KEY" ] \
                 || die "ORCA_SSH_PUBLIC_KEY 가 공개키 원문도, 이 서버에 있는 파일도 아니다: $ORCA_SSH_PUBLIC_KEY
-  로컬 config.env 에 파일 경로로 적었다면 util/sync-host.sh 를 다시 돌린다 (내용으로 풀어 보낸다)."
+  로컬 .env 에 파일 경로로 적었다면 util/sync-host.sh 를 다시 돌린다 (내용으로 풀어 보낸다)."
             cat "$ORCA_SSH_PUBLIC_KEY" > "$new_keys"
             ;;
     esac
@@ -90,7 +90,7 @@ elif [ "$ORCA_SSH_REUSE_ADMIN_KEY" = 1 ]; then
     warn "키 하나가 두 계정을 연다 — ubuntu 키가 털리면 orca 를 거쳐 그대로 호스트 root 다."
 else
     die "orca 에 등록할 공개키가 없다.
-  전용 키를 만들어 config.env 의 ORCA_SSH_PUBLIC_KEY 에 적고 util/sync-host.sh 를 다시 돌린다:
+  전용 키를 만들어 .env 의 ORCA_SSH_PUBLIC_KEY 에 적고 util/sync-host.sh 를 다시 돌린다:
     ssh-keygen -t ed25519 -f ~/.ssh/orca_vscode -C \"vscode->orca\"
     ORCA_SSH_PUBLIC_KEY=~/.ssh/orca_vscode.pub
   ubuntu 의 키를 그대로 쓰려면(권장하지 않음) ORCA_SSH_REUSE_ADMIN_KEY=1 로 둔다.

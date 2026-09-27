@@ -28,8 +28,8 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-TF_DIR="$(cd "$TF_DIR" && pwd)"
-tfvars="$TF_DIR/terraform.tfvars"
+TERRAFORM_DIR="$(cd "$TERRAFORM_DIR" && pwd)"
+tfvars="$TERRAFORM_DIR/terraform.tfvars"
 [ -f "$tfvars" ] || die "terraform.tfvars 가 없다: $tfvars"
 
 if [ -z "$IP" ]; then
@@ -62,5 +62,5 @@ ok "terraform.tfvars 갱신"
 apply_args=(-input=false)
 [ "$AUTO" = 1 ] && apply_args+=(-auto-approve)
 say "terraform apply"
-terraform -chdir="$TF_DIR" apply "${apply_args[@]}"
+terraform -chdir="$TERRAFORM_DIR" apply "${apply_args[@]}"
 ok "SSH /32 규칙 갱신 완료"

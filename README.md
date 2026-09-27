@@ -40,9 +40,11 @@ Tailscale·OS 계정까지만 책임진다. 현재 입주 앱은 `stock_chatbot`
 
 Windows PowerShell에서 설정 예시를 복사한 뒤 값을 확인한다.
 
+환경 설정은 저장소 최상위 `.env` 하나에서 관리한다. `.env.example`은 템플릿이며 실제 값은 커밋하지 않는다.
+
 ```powershell
 Copy-Item .\terraform\terraform.tfvars.example .\terraform\terraform.tfvars
-Copy-Item .\scripts\config.example.env .\scripts\config.env
+Copy-Item .\.env.example .\.env
 
 & "C:\Program Files\Git\bin\bash.exe" ./scripts/util/provision-host.sh
 ```
@@ -50,7 +52,7 @@ Copy-Item .\scripts\config.example.env .\scripts\config.env
 그 다음 출력된 SSH 주소로 접속해 실행한다.
 
 ```bash
-cd ~/remote-lightsail-scripts
+cd ~/remote-lightsail-scripts/scripts
 ./install/01-host-base.sh
 ./install/02-agent-cli.sh
 ./install/03-private-network.sh  # 최초 실행 시 인증 URL을 출력하고 완료될 때까지 대기
@@ -83,7 +85,7 @@ Orca pairing URL과 Tailscale Serve 주소가 임시 EC2 호스트명(`ip-172-..
 
 ## 서비스 계정
 
-새 서버의 `config.env`는 아래 값으로 설정한다. 기존 운영 서버는 이관 완료 전까지 유지한다:
+새 서버의 `.env`는 아래 값으로 설정한다. 기존 운영 서버는 이관 완료 전까지 유지한다:
 
 ```bash
 ORCA_SERVICE_USER=ubuntu
@@ -144,12 +146,15 @@ sudo ./util/backup-orca.sh                  # 프로필 백업
 OOM(1시간), 자격증명 유효성(주 1회), Orca 새 버전(주 1회), `verify-host.sh` 전체 점검(일 1회).
 알림은 `ALERT_WEBHOOK`으로 나가고, 비어 있으면 `/var/log/orca-alert.log`에만 쌓인다.
 
-Orca 버전은 `scripts/config.env`의 `ORCA_VERSION`으로 고정한다. 버전을 바꾼 뒤
-`04-orca-server.sh`를 다시 실행하면 바이너리를 교체하고 서비스를 재시작한다. 운영 데이터와
+Orca 버전은 최상위 `.env`의 `ORCA_VERSION=latest`로 최신 안정판을 선택한다. 공식 문서는
+stable/RC 채널을 안내하며 별도 LTS 채널은 확인되지 않았다. `04-orca-server.sh` 실행 시
+안정판 태그를 조회해 설치하고 `/opt/orca/VERSION`에 기록한다. 특정 버전 고정도 가능하다.
+`latest`에서는 `ORCA_SHA256`을 비워 두고 릴리스 체크섬을 사용한다.
+업데이트는 설치 스크립트를 다시 실행해야 반영된다. 운영 데이터와
 페어링 키는 `/home/ubuntu/.config/orca` 및 `/home/ubuntu/.config/Orca`에 있으므로 스냅샷/백업에
 반드시 포함한다.
 
-비밀정보(`config.env`, Terraform state/tfvars, Codex·GitHub 자격증명, 알림 웹훅, 브라우저
+비밀정보(`.env`, Terraform state/tfvars, Codex·GitHub 자격증명, 알림 웹훅, 브라우저
 페어링 URL)는 Git에 커밋하지 않는다.
 
 ## 신뢰경계

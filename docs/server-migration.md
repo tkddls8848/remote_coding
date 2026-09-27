@@ -22,10 +22,10 @@ Ubuntu 24.04 / 4GB로 구성한다.
 
 ```bash
 cp terraform/migration/terraform.tfvars.example terraform/migration/terraform.tfvars
-TF_DIR="$PWD/terraform/migration" ./scripts/util/provision-host.sh
+TERRAFORM_DIR="$PWD/terraform/migration" ./scripts/util/provision-host.sh
 ```
 
-새 서버용 `config.env`:
+새 서버용 `.env`:
 
 ```bash
 ORCA_SERVICE_USER=ubuntu

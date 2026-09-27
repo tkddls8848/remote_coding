@@ -72,7 +72,7 @@ if [ -n "$ALERT_WEBHOOK" ]; then
     ok "웹훅 설정됨 (/etc/orca/alert.env, 0600 root)"
 else
     warn "ALERT_WEBHOOK 이 비어 있다 — 알림은 /var/log/orca-alert.log 에만 남는다."
-    warn "config.env 에 웹훅을 적고 util/sync-host.sh 를 다시 돌리면 외부로 나간다."
+    warn ".env 에 웹훅을 적고 util/sync-host.sh 를 다시 돌리면 외부로 나간다."
 fi
 
 # --- 2. orca-serve 장애 알림 (5.1) ------------------------------------------

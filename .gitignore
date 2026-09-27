@@ -6,6 +6,7 @@ backup/
 # 자격증명 / 환경값
 .env
 .env.*
+!/.env.example
 *.pem
 *.key
 *-pairing*.txt
@@ -20,9 +21,6 @@ Thumbs.db
 # 이 저장소는 remote-lightsail/ 하위였다가 루트로 올라왔다. 접두사와 실제 경로가
 # 어긋나면 아무것도 막히지 않으므로 폴더 구조가 바뀔 때마다 아래도 같이 고친다.
 # ─────────────────────────────────────────────────────────────
-
-# 스크립트 실행값 (도메인/IP 등 실제 값)
-scripts/config.env
 
 # Terraform — state 에 리소스 상세(IP 등)가 그대로 담긴다.
 # .terraform.lock.hcl 은 provider 버전 고정용이라 예외적으로 커밋한다.

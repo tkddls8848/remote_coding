@@ -9,15 +9,25 @@ set -euo pipefail
 
 UTIL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_DIR="$(cd "$UTIL_DIR/.." && pwd)"
-TF_DIR="${TF_DIR:-$SCRIPT_DIR/../terraform}"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ENV_FILE="$ROOT_DIR/.env"
 
-# 설정: scripts/config.env (로컬) 또는 scripts/host.env (서버) 에서 읽는다.
-for f in "$SCRIPT_DIR/config.env" "$SCRIPT_DIR/host.env"; do
+# 로컬과 서버 모두 최상위 .env 하나만 읽는다.
+if [ -f "$ENV_FILE" ]; then
     # shellcheck disable=SC1090
-    [ -f "$f" ] && . "$f"
-done
+    . "$ENV_FILE"
+fi
 
-ORCA_VERSION="${ORCA_VERSION:-v1.4.188}"
+# 상대 경로는 현재 작업 디렉터리가 아닌 저장소 루트 기준이다.
+# provision-host.sh가 호출하는 sync-host.sh에도 같은 Terraform 대상을 전달한다.
+TERRAFORM_DIR="${TERRAFORM_DIR:-$ROOT_DIR/terraform}"
+case "$TERRAFORM_DIR" in
+    /*|[A-Za-z]:[\\/]*) ;;
+    *) TERRAFORM_DIR="$ROOT_DIR/$TERRAFORM_DIR" ;;
+esac
+export TERRAFORM_DIR
+
+ORCA_VERSION="${ORCA_VERSION:-latest}"
 ORCA_PORT="${ORCA_PORT:-6768}"
 ORCA_SERVICE_USER="${ORCA_SERVICE_USER:-ubuntu}"
 # ubuntu uses the requested local password; an empty value leaves it unchanged.
@@ -157,7 +167,7 @@ as_orca() {
 #       stdout 에 흘린다. 그대로 두면 경고문이 값으로 잡히므로 걸러낸다.
 tf_output() {
     local v
-    v="$( cd "$TF_DIR" && terraform output -no-color -raw "$1" 2>/dev/null )" || return 0
+    v="$( cd "$TERRAFORM_DIR" && terraform output -no-color -raw "$1" 2>/dev/null )" || return 0
     case "$v" in *"No outputs found"* | *"Warning:"* | *"Error:"*) return 0 ;; esac
     printf '%s' "$v"
 }
