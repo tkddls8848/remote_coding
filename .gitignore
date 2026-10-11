@@ -39,7 +39,18 @@ terraform/crash.*.log
 # remote backend 설정 — 버킷 이름은 배포마다 다르고 공개 리포에 둘 이유가 없다.
 # 템플릿은 backend.tf.example 로 커밋한다 (docs/stability-plan.md 3.1).
 terraform/backend.tf
+
+# 그림 GPU 서버 (gpu-art/) — 최상위 terraform/ 과 같은 이유로 state · tfvars 를 넣지 않는다.
+gpu-art/terraform/.terraform/
+gpu-art/terraform/*.tfstate
+gpu-art/terraform/*.tfstate.*
+gpu-art/terraform/*.tfvars
+!gpu-art/terraform/terraform.tfvars.example
+gpu-art/terraform/*.tfplan
 !terraform/backend.tf.example
 
 # 에이전트 로컬 설정
 **/.claude
+
+# 파이썬 바이트코드
+__pycache__/
