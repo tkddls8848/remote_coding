@@ -40,7 +40,8 @@ sudo ./util/show-orca-access.sh
   `verify-host.sh` 일일 실행. 알림은 `ALERT_WEBHOOK`으로 나가고 비어 있으면
   `/var/log/orca-alert.log`에만 남는다.
 
-환경 설정은 저장소 최상위 `.env` 하나에서 관리한다. `.env.example`은 값의 형식을 보여 주는 템플릿이다.
+비밀은 저장소 최상위 `.env` 하나에 둔다(`.env.example`). 나머지 설정의 기본값은 `util/lib.sh`에 있고,
+바꿀 때만 같은 이름으로 `.env`에 적어 덮어쓴다.
 `sync-host.sh`는 서버 배포 디렉터리 최상위에 `.env`(0600)를 생성하고 `scripts/`에 실행 스크립트를 복사한다.
 `/etc/orca`의 서비스 실행용 설정은 설치 스크립트가 자동 생성하므로 직접 관리하지 않는다.
 비밀값은 커밋하지 않는다.

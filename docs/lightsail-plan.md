@@ -367,7 +367,7 @@ sudo ./util/backup-orca.sh                  # 프로필 백업
 
 1. Lightsail 수동 스냅샷을 만든다 — 이름은 `orca-host-YYYYMMDD-preupgrade`.
 2. `sudo ./util/backup-orca.sh` 로 Orca 프로필을 백업한다.
-3. 최상위 `.env`의 `ORCA_VERSION=latest`를 유지하고 `ORCA_SHA256`은 비운다. 특정 버전을 고정하려면 태그를 지정한다.
+3. `ORCA_VERSION`은 기본값 `latest`(`scripts/util/lib.sh`)를 유지하고 `ORCA_SHA256`은 비운다. 특정 버전을 고정하려면 `.env`에 태그를 적는다.
 4. `util/sync-host.sh`로 서버 스크립트를 갱신한다.
 5. `04-orca-server.sh`를 재실행한다. `latest`는 실행 시 안정판을 조회한다.
    출력된 SHA256을 `.env`에 고정하려면 `ORCA_VERSION`도 해당 태그로 고정한다.

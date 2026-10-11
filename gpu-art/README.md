@@ -32,7 +32,7 @@ python gpu-art/runpod/gpu.py stop      # 다 그렸으면 지운다 (안 지워�
 ```
 
 게임 도구는 `COMFY_URL=http://art-gpu:8188` 로 이 서버를 쓴다. 서버 안을 볼 때는 `tailscale ssh root@art-gpu`(기록은 `/workspace/boot.log` · `comfyui.log`).
-판 · 모델은 AWS 쪽과 같다(`.env` 의 `GPU_COMFY_*` · `models.txt`). 데이터 센터 · GPU 순서는 `.env` 의 `RUNPOD_*`.
+판 · 모델은 AWS 쪽과 같다(아래 "판 고정" · `models.txt`). 데이터 센터 · GPU 순서는 `runpod/gpu.py` 의 `RUNPOD_*` 기본값이다 — 바꿀 때만 `.env` 에 같은 이름으로 적는다.
 
 ## AWS EC2
 
@@ -117,12 +117,14 @@ python godot/tools/sd/qwen_faction.py barbarian
 
 ### 판 고정
 
+판은 코드의 기본값이다. AWS 는 `scripts/lib.sh`, RunPod 는 `runpod/gpu.py` 가 읽으므로 두 곳을 같이 고친다.
+
 | 무엇 | 판 | 어디서 바꾸나 |
 |---|---|---|
-| ComfyUI | `v0.39.0` (노트북과 같다) | `.env` `GPU_COMFY_VERSION` |
-| ComfyUI-GGUF | `6ea2651` | `.env` `GPU_COMFY_GGUF_COMMIT` |
-| gguf (pip) | `0.19.0` | `.env` `GPU_GGUF_PIP_VERSION` |
-| PyTorch | cu128 색인의 최신 | `.env` `GPU_TORCH_INDEX_URL` |
+| ComfyUI | `v0.39.0` (노트북과 같다) | `GPU_COMFY_VERSION` |
+| ComfyUI-GGUF | `6ea2651` | `GPU_COMFY_GGUF_COMMIT` |
+| gguf (pip) | `0.19.0` | `GPU_GGUF_PIP_VERSION` |
+| PyTorch | cu128 색인의 최신 | `GPU_TORCH_INDEX_URL` (AWS 만) |
 | 모델 | `models.txt` (sha256 고정) | 게임 저장소 `godot/tools/sd/MODELS.md` 와 같이 고친다 |
 | AMI | 처음 만들 때의 최신 | 새 AMI 는 무시한다 — 바꾸려면 `terraform apply -replace=aws_instance.gpu` 후 설치를 다시 |
 

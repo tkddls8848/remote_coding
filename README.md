@@ -40,7 +40,8 @@ Tailscale·OS 계정까지만 책임진다. 현재 입주 앱은 `stock_chatbot`
 
 Windows PowerShell에서 설정 예시를 복사한 뒤 값을 확인한다.
 
-환경 설정은 저장소 최상위 `.env` 하나에서 관리한다. `.env.example`은 템플릿이며 실제 값은 커밋하지 않는다.
+비밀은 저장소 최상위 `.env` 하나에 둔다. 나머지 설정은 코드의 기본값을 쓴다([설정](#설정)).
+`.env.example`은 템플릿이며 실제 값은 커밋하지 않는다.
 
 ```powershell
 Copy-Item .\terraform\terraform.tfvars.example .\terraform\terraform.tfvars
@@ -85,14 +86,8 @@ Orca pairing URL과 Tailscale Serve 주소가 임시 EC2 호스트명(`ip-172-..
 
 ## 서비스 계정
 
-새 서버의 `.env`는 아래 값으로 설정한다. 기존 운영 서버는 이관 완료 전까지 유지한다:
-
-```bash
-ORCA_SERVICE_USER=ubuntu
-ORCA_SERVICE_PASSWORD=ubuntu
-ORCA_SERVICE_PASSWORD_MIN_LEN=5
-ORCA_SERVICE_SUDO=nopasswd
-```
+코드 기본값은 `ORCA_SERVICE_USER=ubuntu`, `ORCA_SERVICE_SUDO=nopasswd`이다. 로컬 비밀번호는
+`.env`의 `ORCA_SERVICE_PASSWORD`(템플릿 값 `ubuntu`)로 정한다.
 
 기존 `/home/orca`의 프로필과 인증은 기본 설치가 자동으로 옮기지 않는다.
 새 서버의 `ubuntu`에서 CLI 인증과 Orca 페어링을 확인한다.
@@ -128,6 +123,35 @@ VS Code에서 `orca`에 접속하고 `/home/ubuntu/workspace`를 연다.
 기본 `medium_3_0`은 Orca와 에이전트 하나를 위한 시작점이다. 병렬 에이전트, 큰 빌드,
 여러 내장 브라우저 탭을 자주 쓰면 `large_3_0`(8GB) 이상을 권장한다.
 
+## 설정
+
+최상위 `.env`에는 비밀만 둔다: `ORCA_SERVICE_PASSWORD`, `ALERT_WEBHOOK`, `RUNPOD_API_KEY`,
+`GPU_TS_AUTHKEY`. 나머지는 코드의 기본값을 쓴다. 바꿀 때만 같은 이름으로 `.env`에 한 줄
+추가해 덮어쓴다.
+
+### 버전
+
+| 대상 | 기본값 | 기본값 위치 |
+|---|---|---|
+| Orca | `latest` (설치 시 최신 안정판, `/opt/orca/VERSION`에 기록) | `scripts/util/lib.sh` `ORCA_VERSION` |
+| Claude Code · Codex CLI | `latest` | `scripts/util/lib.sh` `CLAUDE_CODE_VERSION` · `CODEX_VERSION` |
+| ComfyUI · GGUF 노드 · gguf · PyTorch | [`gpu-art/README.md`](gpu-art/README.md) "판 고정" | `gpu-art/scripts/lib.sh`, `gpu-art/runpod/gpu.py` |
+
+### 자주 덮어쓰는 값
+
+| 변수 | 기본값 | 뜻 |
+|---|---|---|
+| `REPOS` | `all` | 클론할 저장소(공백 구분). [신뢰경계](#신뢰경계)다 |
+| `GITHUB_OWNER` | `tkddls8848` | 클론할 저장소의 소유자 |
+| `ORCA_SERVICE_SUDO` | `nopasswd` | `nopasswd` · `whitelist` · `password` · `off` |
+| `ORCA_MEMORY_HIGH` · `ORCA_MEMORY_MAX` | `2G` · `2800M` | `orca-serve` 메모리 상한 (4GB 호스트 기준) |
+| `ORCA_SSH_PUBLIC_KEY` | 없음 | VS Code용 추가 공개키 (파일 경로 또는 원문) |
+| `BACKUP_S3_URI` · `BACKUP_KMS_KEY_ID` | 없음 | 백업 업로드 대상 · SSE-KMS 키 |
+| `TERRAFORM_DIR` | `terraform` | 서버 이관 시 `terraform/migration` |
+
+전체 목록과 설명은 `scripts/util/lib.sh`(호스트)와 `gpu-art/scripts/lib.sh` ·
+`gpu-art/runpod/gpu.py`(그림 서버)에 있다.
+
 ## 일상 운영
 
 ```bash
@@ -147,9 +171,10 @@ sudo ./util/backup-orca.sh                  # 프로필 백업
 OOM(1시간), 자격증명 유효성(주 1회), Orca 새 버전(주 1회), `verify-host.sh` 전체 점검(일 1회).
 알림은 `ALERT_WEBHOOK`으로 나가고, 비어 있으면 `/var/log/orca-alert.log`에만 쌓인다.
 
-Orca 버전은 최상위 `.env`의 `ORCA_VERSION=latest`로 최신 안정판을 선택한다. 공식 문서는
+Orca 버전은 기본값 `ORCA_VERSION=latest`로 최신 안정판을 선택한다. 공식 문서는
 stable/RC 채널을 안내하며 별도 LTS 채널은 확인되지 않았다. `04-orca-server.sh` 실행 시
-안정판 태그를 조회해 설치하고 `/opt/orca/VERSION`에 기록한다. 특정 버전 고정도 가능하다.
+안정판 태그를 조회해 설치하고 `/opt/orca/VERSION`에 기록한다. 특정 버전을 고정하려면
+`.env`에 `ORCA_VERSION=v1.4.215`처럼 태그를 적는다.
 `latest`에서는 `ORCA_SHA256`을 비워 두고 릴리스 체크섬을 사용한다.
 업데이트는 설치 스크립트를 다시 실행해야 반영된다. 운영 데이터와
 페어링 키는 `/home/ubuntu/.config/orca` 및 `/home/ubuntu/.config/Orca`에 있으므로 스냅샷/백업에

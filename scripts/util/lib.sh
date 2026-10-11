@@ -90,6 +90,10 @@ CLAUDE_CODE_VERSION="${CLAUDE_CODE_VERSION:-latest}"
 CODEX_VERSION="${CODEX_VERSION:-latest}"
 
 # --- 저장소 클론 신뢰경계 ---------------------------------------------------
+# 클론할 저장소(공백 구분). 이 목록이 호스트의 신뢰경계다 — 실제 작업 대상만 적는 것을
+# 권장한다(REPOS="gong-go homepage"). all 이면 GITHUB_OWNER 의 저장소를 gh 로 열거한다.
+REPOS="${REPOS:-all}"
+GITHUB_OWNER="${GITHUB_OWNER:-tkddls8848}"
 # REPOS=all 열거에 포크를 포함할지. 포크는 제3자가 쓴 코드이고 에이전트는 그것을 읽고
 # 명령을 실행한다. 기본은 제외다. docs/stability-plan.md 6.2.
 REPOS_INCLUDE_FORKS="${REPOS_INCLUDE_FORKS:-0}"

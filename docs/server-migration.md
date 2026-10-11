@@ -25,14 +25,8 @@ cp terraform/migration/terraform.tfvars.example terraform/migration/terraform.tf
 TERRAFORM_DIR="$PWD/terraform/migration" ./scripts/util/provision-host.sh
 ```
 
-새 서버용 `.env`:
-
-```bash
-ORCA_SERVICE_USER=ubuntu
-ORCA_SERVICE_PASSWORD=ubuntu
-ORCA_SERVICE_PASSWORD_MIN_LEN=5
-ORCA_SERVICE_SUDO=nopasswd
-```
+새 서버는 서비스 계정 기본값(`ubuntu`, sudo `nopasswd`)을 그대로 쓴다. `.env`에는
+`.env.example`의 비밀만 채운다.
 
 01~07 설치 단계를 진행한다. Tailscale 새 노드는 고유한 `orca-host-tokyo-v2` 이름으로
 가입한다. 기존 Tailscale 머신 ID를 복사하지 않는다. Orca도 새 서버에서 새로 페어링한다.
