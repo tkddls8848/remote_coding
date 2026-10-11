@@ -5,7 +5,7 @@
 # 그린 조합 그대로다: Qwen-Image-Edit-2511 Q3_K_M + Qwen2.5-VL-7B Q4_K_M(GGUF) + Lightning 8 단계.
 # 받은 뒤 sha256 이 다르면 04-models.sh 가 지우고 멈춘다.
 #
-# 24GB GPU 에서는 Q4_K_M 이나 fp8 인코더도 올라간다. 쓰려면 아래 주석을 풀고, 게임 도구에서
+# 그림 서버(RTX PRO 4500 32GB)에서는 아래 최상위 묶음이 올라간다. 게임 도구에서
 # QWEN_UNET / QWEN_TE 환경 변수로 고른다(화풍이 조금 달라질 수 있으니 기준 그림과 비교할 것).
 
 unet/qwen-image-edit-2511-Q3_K_M.gguf https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q3_K_M.gguf 5631fd3a407880e1fb541dc47696628633c898565136c128d5a2741d4b84e9e9
@@ -14,7 +14,7 @@ text_encoders/mmproj-Qwen2.5-VL-7B-Instruct-f16.gguf https://huggingface.co/ggml
 vae/qwen_image_vae.safetensors https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f
 loras/Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/main/Qwen-Image-Edit-2511-Lightning-8steps-V1.0-bf16.safetensors a9e81a58a78f260f67b337a6f615e8fa4cd3bc79847c77b7d61a581b789b1ba8
 
-# 24GB GPU 용 최상위 묶음(2026-10-11 사용자 "4090 이면 최상위로"): 거의 원본 품질인 Q8_0 + 큰 인코더(fp8).
+# RTX PRO 4500 32GB 용 최상위 묶음: 거의 원본 품질인 Q8_0 + 큰 인코더(fp8). 원본 bf16(약 41GB)은 32GB 에 올라가지 않는다.
 # 게임 도구에서 QWEN_UNET=qwen-image-edit-2511-Q8_0.gguf QWEN_TE=qwen_2.5_vl_7b_fp8_scaled.safetensors QWEN_STEPS=40 QWEN_CFG=4 QWEN_LORA=none
 unet/qwen-image-edit-2511-Q8_0.gguf https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q8_0.gguf ab4f0622fb002fccaaa679a2ecce6fd1b3190d8ea28a5b7b2b17b8669bc24afa
 text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors cb5636d852a0ea6a9075ab1bef496c0db7aef13c02350571e388aea959c5c0b4

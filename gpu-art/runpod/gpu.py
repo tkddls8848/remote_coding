@@ -48,7 +48,8 @@ POD_NAME = cfg('RUNPOD_POD_NAME', 'art-gpu')
 VOLUME_NAME = cfg('RUNPOD_VOLUME_NAME', 'art-gpu-models')
 VOLUME_GB = int(cfg('RUNPOD_VOLUME_GB', '90'))
 DATACENTER = cfg('RUNPOD_DATACENTER', 'EU-RO-1')
-GPU_TYPES = [g.strip() for g in cfg('RUNPOD_GPU_TYPES', 'NVIDIA RTX PRO 4500 Blackwell,NVIDIA GeForce RTX 4090').split(',') if g.strip()]
+# RTX PRO 4500 Blackwell(32GB)만 쓴다. 모델 묶음을 32GB 에 맞췄으므로 24GB 카드로 내려가지 않게 대체 후보를 두지 않는다.
+GPU_TYPES = [g.strip() for g in cfg('RUNPOD_GPU_TYPES', 'NVIDIA RTX PRO 4500 Blackwell').split(',') if g.strip()]
 IMAGE = cfg('RUNPOD_IMAGE', 'pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime')
 TS_HOST = cfg('GPU_TAILSCALE_HOSTNAME', POD_NAME)
 PORT = 8188
