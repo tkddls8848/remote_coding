@@ -123,7 +123,7 @@ VS Code에서 `orca`에 접속하고 `/home/ubuntu/workspace`를 연다.
 | [`scripts/util/`](scripts/util/) | 생성·동기화·접근 URL 조회·검증·백업·업데이트 확인 |
 | [`docs/lightsail-plan.md`](docs/lightsail-plan.md) | 상세 구축, 운영, 백업, 복구 절차 |
 | [`docs/stability-plan.md`](docs/stability-plan.md) | 안정성·보안 갭 분석과 개선 계획 |
-| [`gpu-art/`](gpu-art/) | 그림 생성 전용 GPU 서버 — RunPod(작업할 때만 켜기, 기본) 또는 EC2. ComfyUI 는 Tailscale 로만, 1시간 놀면 스스로 꺼짐 |
+| [`gpu-art/`](gpu-art/) | 그림 생성 전용 GPU 서버 — RunPod(작업할 때만 켜기, 기본) 또는 EC2. ComfyUI 는 Tailscale 로만, 30분 놀면 스스로 꺼짐 |
 
 기본 `medium_3_0`은 Orca와 에이전트 하나를 위한 시작점이다. 병렬 에이전트, 큰 빌드,
 여러 내장 브라우저 탭을 자주 쓰면 `large_3_0`(8GB) 이상을 권장한다.
