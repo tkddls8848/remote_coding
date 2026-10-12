@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# RunPod 팟 안에서 도는 유휴 감시 — IDLE_MIN 분(기본 30) 동안 그림 대기열 · GPU 사용 · Tailscale SSH 접속이 모두 없으면 이 팟을 지운다.
-# 저장 공간(/workspace)은 남는다. boot.sh 가 켤 때 띄우고, 이미 떠 있는 팟에는 관리 PC 에서 올려 띄울 수도 있다:
-#   tailscale ssh root@art-gpu 'cat > /opt/idle-guard.sh && (setsid nohup bash /opt/idle-guard.sh >/dev/null 2>&1 &)' < gpu-art/runpod/idle_guard.sh
+# RunPod 팟 안에서 도는 유휴 감시 — IDLE_MIN 분(기본 30) 동안 그림 대기열 · GPU 사용 · SSH 셸 접속이 모두 없으면 이 팟을 지운다.
+# 남는 것은 없다(저장 공간을 쓰지 않는다). boot.sh 가 켤 때 띄우고, 이미 떠 있는 팟에는 관리 PC 에서 올려 띄울 수도 있다:
+#   python gpu-art/runpod/gpu.py ssh 'cat > /opt/idle-guard.sh && (setsid nohup bash /opt/idle-guard.sh >/dev/null 2>&1 &)' < gpu-art/runpod/idle_guard.sh
+# ComfyUI 를 쓰는 SSH 터널(셸 없는 접속, notty)은 늘 붙어 있으므로 접속으로 치지 않는다 — 셸(pts)만 센다.
 # 팟 전용 키(RUNPOD_API_KEY, RunPod 이 넣어 준다)는 REST 에서 403 이고 GraphQL 에서만 통한다(2026-10-11 확인).
 set -u
-W=/workspace
+W=/opt/art
 # ssh 로 띄우면 PATH 에 이미지의 파이썬(/opt/conda/bin)이 없다
 export PATH="/opt/conda/bin:/usr/local/bin:$PATH"
 command -v python3 >/dev/null || { echo "[idle] python3 없음" >> $W/boot.log; exit 1; }
@@ -40,8 +41,9 @@ while true; do
     [ "${IDLE_MIN:-0}" -gt 0 ] || continue
     q=$(curl -fsS -m 5 http://127.0.0.1:8188/queue 2>/dev/null | python3 -c 'import json,sys; d=json.load(sys.stdin); print(len(d.get("queue_running",[]))+len(d.get("queue_pending",[])))' 2>/dev/null || echo 0)
     u=$(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null | sort -n | tail -1)
-    s=$(pgrep -fc 'be-child ssh' 2>/dev/null || true)
-    if [ "${q:-0}" -gt 0 ] || [ "${u:-0}" -gt 10 ] || [ "${s:-0}" -gt 0 ]; then last=$(date +%s); continue; fi
+    s=$(pgrep -fc 'sshd.*@pts' 2>/dev/null || true)
+    b=0; [ -f "$W/booting" ] && [ $(( $(date +%s) - $(stat -c %Y "$W/booting") )) -lt 5400 ] && b=1   # 준비 중(최대 90분)
+    if [ "${q:-0}" -gt 0 ] || [ "${u:-0}" -gt 10 ] || [ "${s:-0}" -gt 0 ] || [ "$b" = 1 ]; then last=$(date +%s); continue; fi
     idle=$(( ($(date +%s) - last) / 60 ))
     if [ "$idle" -ge "$IDLE_MIN" ]; then
         say "유휴 ${idle}분 — 팟을 지운다"

@@ -47,6 +47,8 @@ gpu-art/terraform/*.tfstate.*
 gpu-art/terraform/*.tfvars
 !gpu-art/terraform/terraform.tfvars.example
 gpu-art/terraform/*.tfplan
+# RunPod 그림 서버의 로컬 상태 (gpu-art/runpod/gpu.py — SSH 터널 pid · 팟별 호스트 키)
+.gpu-art/
 !terraform/backend.tf.example
 
 # 에이전트 로컬 설정

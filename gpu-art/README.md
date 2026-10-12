@@ -6,33 +6,52 @@
 |---|---|---|
 | 맞는 쓰임 | **작업할 때만 몰아서 켠다** | 늘 같은 서버 · AWS 계정 안에 두고 싶을 때 |
 | GPU | RTX PRO 4500 Blackwell 32GB · RAM 50GB · 8 vCPU (대체 후보 없음) | L4 24GB (g6.2xlarge) |
-| 값(대략) | 켠 동안 시간당 약 0.74달러 · 꺼 두면 저장 공간 90GB 한 달 약 6.3달러 | 시간당 약 1.2달러 · 꺼 두면 디스크 100GB 한 달 약 10달러 |
-| 켜고 끄기 | 팟을 만들고 지운다(모델 · 설치는 네트워크 저장 공간에 남는다) | 인스턴스를 켜고 끈다 |
+| 값(대략) | 켠 동안 시간당 약 0.75달러 · **꺼 두면 0원** | 시간당 약 1.2달러 · 꺼 두면 디스크 100GB 한 달 약 10달러 |
+| 켜고 끄기 | 팟을 만들고 통째로 지운다(켤 때마다 모델까지 새로 받는다) | 인스턴스를 켜고 끈다 |
+| 붙는 길 | SSH 터널(공개키로만) | Tailscale |
 
 ## RunPod — 작업할 때만 켜기
 
 ```text
 관리 PC (게임 도구 · Claude Code)
-  └─ Tailscale ──> RunPod 팟 (pytorch/pytorch 이미지, Secure Cloud)
-                     ├─ ComfyUI 127.0.0.1:8188  ← Tailscale(userspace)이 tailnet 연결을 넘긴다. 공개 포트 없음
-                     ├─ /workspace = 네트워크 저장 공간(ComfyUI · venv · models · Tailscale 노드 상태)
-                     └─ 30분 놀면 팟이 스스로 지운다(저장 공간은 남는다)
+  └─ SSH 터널 127.0.0.1:8188 ──> RunPod 팟 (pytorch/pytorch 이미지, 아무 데이터 센터)
+                                   ├─ sshd :22  ← 공개 포트는 이것 하나, 공개키로만
+                                   ├─ ComfyUI 127.0.0.1:8188  ← 인증이 없으므로 터널로만
+                                   ├─ /opt = 팟 디스크(ComfyUI · venv · models) — 켤 때마다 새로 조립
+                                   └─ 30분 놀면 팟이 스스로 지운다(남는 것 없음)
 ```
+
+저장 공간을 두지 않는다. 그린 그림은 게임 도구가 바로 받아 가고, 나머지(ComfyUI · 모델)는 판이 고정되어 있어
+켤 때마다 다시 받으면 된다. 그래서 꺼 둔 동안 값이 없고, 저장 공간이 있는 데이터 센터에 묶이지 않아 GPU 가
+남은 곳 어디서나 켠다. 대신 켤 때마다 모델 약 48GB 를 받느라 5~15분 걸린다(받는 동안도 GPU 값이 나간다 —
+한 번에 약 0.1달러). 한 달에 수십 번 켜지 않는 한 저장 공간(90GB 한 달 약 6.3달러)보다 싸다.
 
 처음 한 번:
 1. RunPod 가입 · 충전(처음 10~25달러면 충분).
 2. RunPod 웹 → Settings → API Keys 에서 키를 만들어 최상위 `.env` 에 `RUNPOD_API_KEY=...`.
-3. Tailscale 관리 화면 → Settings → Keys → *Generate auth key*(한 번 쓰는 키면 된다)를 `.env` 의 `GPU_TS_AUTHKEY=...` 에.
-   처음 켤 때만 쓴다 — 그 뒤로는 저장 공간에 노드 상태가 남아 같은 이름(`art-gpu`)으로 붙는다.
+3. 관리 PC 에 SSH 키가 있어야 한다(`~/.ssh/id_ed25519` 등, 없으면 `ssh-keygen -t ed25519`).
+   공개키는 `gpu.py` 가 팟에 실어 보낸다. Windows 는 OpenSSH 클라이언트(설정 → 선택적 기능)가 있으면 된다.
+4. 예전에 네트워크 저장 공간(`art-gpu-models`)을 만들었다면 `python gpu-art/runpod/gpu.py destroy-volume --yes` 로 지운다.
 
 ```bash
-python gpu-art/runpod/gpu.py start     # 처음엔 모델을 받느라 10~20분, 그다음부터 1~3분
+python gpu-art/runpod/gpu.py start     # 팟 만들기 → SSH 터널 → ComfyUI 응답까지 (5~15분)
 python gpu-art/runpod/gpu.py status
+python gpu-art/runpod/gpu.py tunnel    # 노트북이 잠들었다 깨서 터널이 끊겼을 때
+python gpu-art/runpod/gpu.py ssh       # 서버 안으로 (예: ssh tail -f /opt/art/boot.log)
 python gpu-art/runpod/gpu.py stop      # 다 그렸으면 지운다 (안 지워도 30분 놀면 스스로 지운다)
 ```
 
-게임 도구는 `COMFY_URL=http://art-gpu:8188` 로 이 서버를 쓴다. 서버 안을 볼 때는 `tailscale ssh root@art-gpu`(기록은 `/workspace/boot.log` · `comfyui.log`).
-판 · 모델은 AWS 쪽과 같다(아래 "판 고정" · `models.txt`). 데이터 센터 · GPU 순서는 `runpod/gpu.py` 의 `RUNPOD_*` 기본값이다 — 바꿀 때만 `.env` 에 같은 이름으로 적는다.
+터널이 관리 PC 의 `127.0.0.1:8188` 을 팟의 ComfyUI 로 넘기므로 게임 도구는 노트북 ComfyUI 때와 같은
+`COMFY_URL=http://127.0.0.1:8188`(기본값)을 그대로 쓴다. 노트북 ComfyUI 를 같이 켜 둘 때만 `.env` 에
+`RUNPOD_LOCAL_PORT=8189` 처럼 바꾸고 `COMFY_URL` 도 맞춘다. 터널은 `start` 를 실행한 PC 에서만 열린다.
+
+유휴 감시는 그림 대기열 · GPU 사용 · SSH 셸 접속(`gpu.py ssh`)을 본다. ComfyUI 터널은 늘 붙어 있으므로
+접속으로 치지 않는다. 준비 중에 실패하면 팟은 멈춰 기다리다가(`gpu.py ssh` 로 `/opt/art/boot.log` 를 볼 수 있다)
+놀면 스스로 지운다.
+
+판 · 모델은 AWS 쪽과 같다(아래 "판 고정" · `models.txt`). GPU · 데이터 센터 · 클라우드 종류는 `runpod/gpu.py` 의
+`RUNPOD_*` 기본값이다 — 데이터 센터는 비워 두면 아무 곳, Community Cloud 는 `RUNPOD_CLOUD_TYPE=COMMUNITY`
+(더 싸다, 공인 IP 가 있는 호스트만 고른다). 바꿀 때만 `.env` 에 같은 이름으로 적는다.
 
 ## AWS EC2
 
