@@ -55,6 +55,7 @@ OLD_VOLUME_NAME = cfg('RUNPOD_VOLUME_NAME', 'art-gpu-models')   # 예전 네트�
 DATACENTERS = [d.strip() for d in cfg('RUNPOD_DATACENTER').split(',') if d.strip()]
 CLOUD = cfg('RUNPOD_CLOUD_TYPE', 'SECURE')   # COMMUNITY 면 더 싸다(공인 IP 있는 호스트만 고른다)
 # RTX PRO 4500 Blackwell(32GB)만 쓴다. 모델 묶음을 32GB 에 맞췄으므로 24GB 카드로 내려가지 않게 대체 후보를 두지 않는다.
+# Server Edition(같은 32GB · 같은 값)은 REST POST /pods 의 gpuTypeIds 목록에 없어 400 이 난다(2026-10-12) — GraphQL 로만 만들 수 있다.
 GPU_TYPES = [g.strip() for g in cfg('RUNPOD_GPU_TYPES', 'NVIDIA RTX PRO 4500 Blackwell').split(',') if g.strip()]
 IMAGE = cfg('RUNPOD_IMAGE', 'pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime')
 DISK_GB = int(cfg('RUNPOD_DISK_GB', '80'))   # 모델(약 48GB) + ComfyUI · 가상 환경. 켜 둔 동안만 값을 낸다
