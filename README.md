@@ -125,8 +125,8 @@ VS Code에서 `orca`에 접속하고 `/home/ubuntu/workspace`를 연다.
 
 ## 설정
 
-최상위 `.env`에는 비밀만 둔다: `ORCA_SERVICE_PASSWORD`, `ALERT_WEBHOOK`, `RUNPOD_API_KEY`,
-`GPU_TS_AUTHKEY`(EC2 그림 서버만). 나머지는 코드의 기본값을 쓴다. 바꿀 때만 같은 이름으로 `.env`에 한 줄
+최상위 `.env`에는 비밀만 둔다: `ORCA_SERVICE_PASSWORD`, `ALERT_WEBHOOK`, `RUNPOD_API_KEY`.
+EC2 그림 서버를 쓸 때만 `GPU_TS_AUTHKEY`(선택, [`gpu-art/README.md`](gpu-art/README.md))를 더한다. 나머지는 코드의 기본값을 쓴다. 바꿀 때만 같은 이름으로 `.env`에 한 줄
 추가해 덮어쓴다.
 
 ### 버전

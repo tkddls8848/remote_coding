@@ -96,7 +96,8 @@ Orca 호스트(최상위 `terraform/`)와는 **state 를 나눈다** — 수명�
 2. **권한.** 이 모듈은 EC2 의 인스턴스 · 키페어 · 보안 그룹과 AMI · VPC · 서브넷 조회,
    `DescribeInstanceTypeOfferings`, `Start/StopInstances` 를 쓴다.
 3. **Tailscale.** 관리 PC 가 Orca 호스트와 같은 tailnet 에 이미 있으면 그대로 된다.
-   서버 인증을 자동으로 하려면 `.env` 의 `GPU_TS_AUTHKEY` 에 auth key 를 넣는다(비우면 URL 로 인증).
+   서버 인증을 자동으로 하려면 최상위 `.env` 에 `GPU_TS_AUTHKEY=<auth key>` 를 한 줄 더한다(선택 —
+   `.env.example` 에는 없다. 비우면 처음 설치할 때 인증 URL 을 출력하고 기다린다).
 4. **기본 VPC** 가 있어야 한다(대부분의 계정에 있다).
 
 ### 만들기
