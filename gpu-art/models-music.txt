@@ -1,0 +1,18 @@
+# 음악 서버가 받는 모델 — <ComfyUI/models 아래 경로> <받는 주소> <sha256>
+#
+# ACE-Step 1.5 XL (4B DiT). 원본 ACE-Step/Ace-Step1.5 는 MIT, 상업 이용 허용("Commercial-Ready" — 허가된
+# 데이터 · 로열티 프리 · 합성 데이터로 학습). 파일은 ComfyUI 용으로 다시 묶은 Comfy-Org/ace_step_1.5_ComfyUI_files.
+# sha256 은 Hugging Face LFS oid 그대로다(2026-10-13).
+#
+# 쓰는 법: GPU_MODELS_FILE=models-music.txt RUNPOD_POD_NAME=music-gpu RUNPOD_LOCAL_PORT=8189 python gpu-art/runpod/gpu.py start
+# 워크플로는 ComfyUI 공식 템플릿 audio_ace_step1_5_xl_turbo · audio_ace_step1_5_xl_sft 와 같은 조합이다.
+
+# DiT — turbo(8 단계, 빠름)와 sft(50 단계, 품질 최고)를 둘 다 받아 비교한다
+diffusion_models/acestep_v1.5_xl_turbo_bf16.safetensors https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files/diffusion_models/acestep_v1.5_xl_turbo_bf16.safetensors 86a1afb0a1f711f0e3304ff65d874df3ae6783db683dcf982513fb9b6d14ae71
+diffusion_models/acestep_v1.5_xl_sft_bf16.safetensors https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files/diffusion_models/acestep_v1.5_xl_sft_bf16.safetensors 3c05ae268353b3540fb1fd7db4fd77ffbda9802ec641b624e15648e030ecf3ce
+
+# 텍스트 인코더(DualCLIPLoader 'ace') — 0.6B + 4B LM
+text_encoders/qwen_0.6b_ace15.safetensors https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files/text_encoders/qwen_0.6b_ace15.safetensors fd4590c82153b8ddb67e15a2e7aaa8afa8b83a858c8a9b82a4831063156aa7a7
+text_encoders/qwen_4b_ace15.safetensors https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files/text_encoders/qwen_4b_ace15.safetensors ffe5ffb855086c2ab55e467e9859fb01894781020a0376484dd19de166b79873
+
+vae/ace_1.5_vae.safetensors https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files/vae/ace_1.5_vae.safetensors 6de92e3a862acd287e08b024ac90f0783a8635451b728721a33ff03565bcb2bb

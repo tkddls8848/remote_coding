@@ -45,6 +45,16 @@ python gpu-art/runpod/gpu.py stop      # 다 그렸으면 지운다 (안 지워�
 `COMFY_URL=http://127.0.0.1:8188`(기본값)을 그대로 쓴다. 노트북 ComfyUI 를 같이 켜 둘 때만 `.env` 에
 `RUNPOD_LOCAL_PORT=8189` 처럼 바꾸고 `COMFY_URL` 도 맞춘다. 터널은 `start` 를 실행한 PC 에서만 열린다.
 
+### 음악 팟 (ACE-Step 1.5)
+
+같은 서버 구조로 음악도 만든다(유튜브 채널 저장소 `blues_channel` 이 쓴다). 모델 목록만 `models-music.txt`
+(ACE-Step 1.5 XL, MIT · 약 30GB)로 바꾸고, 이름 · 포트를 달리해 그림 팟과 같이 떠 있어도 엉키지 않게 한다.
+
+```powershell
+$env:GPU_MODELS_FILE = "models-music.txt"; $env:RUNPOD_POD_NAME = "music-gpu"; $env:RUNPOD_LOCAL_PORT = "8189"
+python gpu-art/runpod/gpu.py start     # status · stop 도 같은 환경 변수로
+```
+
 유휴 감시는 그림 대기열 · GPU 사용 · SSH 셸 접속(`gpu.py ssh`)을 본다. ComfyUI 터널은 늘 붙어 있으므로
 접속으로 치지 않는다. 준비 중에 실패하면 팟은 멈춰 기다리다가(`gpu.py ssh` 로 `/opt/art/boot.log` 를 볼 수 있다)
 놀면 스스로 지운다.

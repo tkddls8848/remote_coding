@@ -58,11 +58,15 @@ CLOUD = cfg('RUNPOD_CLOUD_TYPE', 'SECURE')   # COMMUNITY 면 더 싸다(공인 I
 # Server Edition(같은 32GB · 같은 값)은 REST POST /pods 의 gpuTypeIds 목록에 없어 400 이 난다(2026-10-12) — GraphQL 로만 만들 수 있다.
 GPU_TYPES = [g.strip() for g in cfg('RUNPOD_GPU_TYPES', 'NVIDIA RTX PRO 4500 Blackwell').split(',') if g.strip()]
 IMAGE = cfg('RUNPOD_IMAGE', 'pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime')
-DISK_GB = int(cfg('RUNPOD_DISK_GB', '80'))   # 모델(약 48GB) + ComfyUI · 가상 환경. 켜 둔 동안만 값을 낸다
+DISK_GB = int(cfg('RUNPOD_DISK_GB', '80'))   # 모델(그림 약 48GB · 음악 약 30GB) + ComfyUI · 가상 환경. 켜 둔 동안만 값을 낸다
+# 받을 모델 목록(gpu-art/ 아래 파일 이름). 그림은 models.txt, 음악(ACE-Step)은 models-music.txt.
+# 음악 팟은 RUNPOD_POD_NAME · RUNPOD_LOCAL_PORT 도 바꿔서 그림 팟과 같이 떠 있어도 엉키지 않게 한다.
+MODELS_FILE = GPU_DIR / cfg('GPU_MODELS_FILE', 'models.txt')
 SSH_KEY = cfg('RUNPOD_SSH_KEY')               # 비우면 ssh 기본 키(~/.ssh/id_ed25519 등)
 PORT = 8188
 LOCAL_PORT = int(cfg('RUNPOD_LOCAL_PORT', str(PORT)))
 URL = f'http://127.0.0.1:{LOCAL_PORT}'   # 노트북 ComfyUI 와 같은 주소 — 게임 도구 기본값 그대로 쓴다
+TUNNEL = 'tunnel' if POD_NAME == 'art-gpu' else f'tunnel-{POD_NAME}'   # 팟마다 터널 pid · 로그를 따로 — 그림 · 음악 팟을 같이 켜도 서로의 터널을 닫지 않게
 
 
 def die(msg):
@@ -142,7 +146,7 @@ def port_open(port):
 
 
 def close_tunnel():
-    f = STATE / 'tunnel.pid'
+    f = STATE / f'{TUNNEL}.pid'
     if f.exists():
         try:
             os.kill(int(f.read_text()), signal.SIGTERM)
@@ -161,13 +165,13 @@ def open_tunnel(pod, ep):
     a[1:1] = ['-N', '-L', f'127.0.0.1:{LOCAL_PORT}:127.0.0.1:{PORT}', '-o', 'BatchMode=yes', '-o', 'ExitOnForwardFailure=yes',
               '-o', 'ServerAliveInterval=30', '-o', 'ServerAliveCountMax=3']
     kw = {'creationflags': 0x00000200 | 0x00000008} if os.name == 'nt' else {'start_new_session': True}   # 이 명령이 끝나도 터널은 남는다
-    with open(STATE / 'tunnel.log', 'ab') as log:
+    with open(STATE / f'{TUNNEL}.log', 'ab') as log:
         p = subprocess.Popen(a, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=log, **kw)
     for _ in range(20):
         if p.poll() is not None:
             return False
         if port_open(LOCAL_PORT):
-            (STATE / 'tunnel.pid').write_text(str(p.pid))
+            (STATE / f'{TUNNEL}.pid').write_text(str(p.pid))
             return True
         time.sleep(1)
     p.kill()
@@ -184,7 +188,7 @@ def tunnel_to(pod, wait_min=10):
             return ep
         time.sleep(10)
         print(f'  .. SSH 대기 {round(time.time() - t0)}초', end='\r', flush=True)
-    die(f'{wait_min}분 안에 SSH 로 붙지 못했다. {STATE / "tunnel.log"} 와 RunPod 웹의 팟 로그를 볼 것'
+    die(f'{wait_min}분 안에 SSH 로 붙지 못했다. {STATE / (TUNNEL + ".log")} 와 RunPod 웹의 팟 로그를 볼 것'
         ' (공개키: RunPod 계정 설정 또는 ~/.ssh/id_ed25519.pub).')
 
 
@@ -215,7 +219,7 @@ def start():
             'ports': ['22/tcp'],   # SSH 하나만 공개 — ComfyUI 는 터널로
             'dockerStartCmd': ['bash', '-c', 'echo "$BOOT_SH" | base64 -d > /boot.sh && exec bash /boot.sh'],
             'env': {
-                'BOOT_SH': b64(HERE / 'boot.sh'), 'MODELS_TXT': b64(GPU_DIR / 'models.txt'), 'IDLE_SH': b64(HERE / 'idle_guard.sh'),
+                'BOOT_SH': b64(HERE / 'boot.sh'), 'MODELS_TXT': b64(MODELS_FILE), 'IDLE_SH': b64(HERE / 'idle_guard.sh'),
                 'ART_SSH_PUBKEY': pub,
                 'COMFY_VERSION': cfg('GPU_COMFY_VERSION', 'v0.39.0'),
                 'GGUF_COMMIT': cfg('GPU_COMFY_GGUF_COMMIT', '6ea2651e7df66d7585f6ffee804b20e92fb38b8a'),
@@ -229,7 +233,7 @@ def start():
         pod = call('POST', '/pods', body)
         print(f'  ok {pod.get("id")} · 시간당 {pod.get("costPerHr", "?")}달러')
     tunnel_to(pod)
-    print(f'==> ComfyUI 응답 대기 — 모델(약 48GB)을 받느라 5~15분')
+    print(f'==> ComfyUI 응답 대기 — 모델({MODELS_FILE.name})을 받느라 5~15분')
     t0 = time.time()
     while time.time() - t0 < 40 * 60:
         if comfy_up():
