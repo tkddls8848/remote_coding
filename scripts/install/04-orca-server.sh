@@ -411,6 +411,9 @@ $hardening
 # 고르게 두는 대신, 한도를 넘은 이 서비스만 예측 가능하게 멈추게 한다 (5.3 / 6.4).
 MemoryHigh=$ORCA_MEMORY_HIGH
 MemoryMax=$ORCA_MEMORY_MAX
+# 스왑 상한이 없으면 MemoryMax 에 닿기 전에 호스트 스왑을 다 채우며 멈추고, OOM 은 끝내
+# 오지 않는다. 상한을 두면 그 지점에서 위 정지가 실제로 일어난다.
+MemorySwapMax=$ORCA_MEMORY_SWAP_MAX
 OOMPolicy=stop
 
 [Install]

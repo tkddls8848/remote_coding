@@ -358,6 +358,7 @@ ProtectKernelTunables=true
 ProtectControlGroups=true
 MemoryHigh=2G                 # 5.3 — 감시가 아니라 제어
 MemoryMax=2800M
+MemorySwapMax=512M            # 없으면 MemoryMax 대신 호스트 스왑이 먼저 찬다
 OOMPolicy=stop
 ```
 > `NoNewPrivileges=true` 는 6.1 의 sudo 경로를 막는다. 에이전트가 sudo 를 쓰는 현행 설계에서는

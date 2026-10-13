@@ -69,6 +69,9 @@ ORCA_SUDO_LOG_DIR="${ORCA_SUDO_LOG_DIR:-/var/log/sudo-io}"
 # 한도를 넘은 이 서비스만 예측 가능하게 멈추게 한다. docs/stability-plan.md 5.3 / 6.4.
 ORCA_MEMORY_HIGH="${ORCA_MEMORY_HIGH:-2G}"
 ORCA_MEMORY_MAX="${ORCA_MEMORY_MAX:-2800M}"
+# 이 서비스가 쓸 수 있는 스왑. 상한이 없으면 한도를 넘은 작업이 MemoryMax 에 닿기 전에
+# 호스트 스왑을 다 채우며 멈추고, OOM 은 끝내 오지 않는다 (2026-10-11, 10-13 장애).
+ORCA_MEMORY_SWAP_MAX="${ORCA_MEMORY_SWAP_MAX:-512M}"
 # Orca 바이너리 무결성. ORCA_SHA256 을 적어 두면 04-orca-server.sh 가 다운로드를
 # 그 값과 대조하고 다르면 설치하지 않는다. 비워 두면 릴리스의 체크섬 파일을 먼저 찾고,
 # 그것도 없으면 경고한 뒤 실제 값을 알려 준다. docs/stability-plan.md 4.3.

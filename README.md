@@ -144,7 +144,7 @@ EC2 그림 서버를 쓸 때만 `GPU_TS_AUTHKEY`(선택, [`gpu-art/README.md`](g
 | `REPOS` | `all` | 클론할 저장소(공백 구분). [신뢰경계](#신뢰경계)다 |
 | `GITHUB_OWNER` | `tkddls8848` | 클론할 저장소의 소유자 |
 | `ORCA_SERVICE_SUDO` | `nopasswd` | `nopasswd` · `whitelist` · `password` · `off` |
-| `ORCA_MEMORY_HIGH` · `ORCA_MEMORY_MAX` | `2G` · `2800M` | `orca-serve` 메모리 상한 (4GB 호스트 기준) |
+| `ORCA_MEMORY_HIGH` · `ORCA_MEMORY_MAX` · `ORCA_MEMORY_SWAP_MAX` | `2G` · `2800M` · `512M` | `orca-serve` 메모리·스왑 상한 (4GB 호스트 기준) |
 | `ORCA_SSH_PUBLIC_KEY` | 없음 | VS Code용 추가 공개키 (파일 경로 또는 원문) |
 | `BACKUP_S3_URI` · `BACKUP_KMS_KEY_ID` | 없음 | 백업 업로드 대상 · SSE-KMS 키 |
 | `TERRAFORM_DIR` | `terraform` | 서버 이관 시 `terraform/migration` |

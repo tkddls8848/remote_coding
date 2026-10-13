@@ -128,6 +128,8 @@ drift_check "authorized_keys 무변경"  orca-authorized-keys  "$(getent passwd 
 # 6.4 — 유닛에 메모리 상한이 걸려 있는가 (OOM killer 대신 예측 가능한 정지).
 check "orca-serve MemoryMax 설정됨" bash -lc \
     '[ "$(systemctl show orca-serve.service -p MemoryMax --value)" != "infinity" ]'
+check "orca-serve MemorySwapMax 설정됨" bash -lc \
+    '[ "$(systemctl show orca-serve.service -p MemorySwapMax --value)" != "infinity" ]'
 
 # 6.7 — 토큰이 있는지가 아니라 유효한지를 본다.
 check "GitHub 토큰 유효 (API 호출)" as_orca gh api user -q .login

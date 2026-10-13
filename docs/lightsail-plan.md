@@ -177,8 +177,9 @@ Codex device URL과 GitHub device URL도 관리 PC 브라우저에서 연다. Ap
 - `ORCA_SUDO_LOG=on`(기본)이면 sudo I/O 로깅을 켠다. 누가 무엇을 root로 실행했는지가
   `/var/log/sudo-io` 에 남고 `sudoreplay -l` / `sudoreplay <ID>` 로 재생된다. 화이트리스트로
   좁히기 전에 실제 쓰이는 명령을 관찰하는 수단이기도 하다.
-- 유닛에는 `MemoryHigh` / `MemoryMax` / `OOMPolicy=stop` 이 걸린다. 커널 OOM killer 가 호스트에서
+- 유닛에는 `MemoryHigh` / `MemoryMax` / `MemorySwapMax` / `OOMPolicy=stop` 이 걸린다. 커널 OOM killer 가 호스트에서
   임의의 프로세스를 고르게 두는 대신 한도를 넘은 이 서비스만 예측 가능하게 멈추게 한다.
+  `MemorySwapMax` 가 없으면 이 서비스가 호스트 스왑을 다 채우며 멈추고 정지는 일어나지 않는다.
   `NoNewPrivileges` 와 `ProtectSystem`·`ProtectHome` 계열은 sudo 경로 자체를 막으므로
   `ORCA_SERVICE_SUDO=off` 일 때만 켜진다 — 순서를 지키지 않으면 서비스가 아니라 운영이 막힌다.
 - `04-orca-server.sh`가 최상위 `.env`의 `ORCA_SERVICE_PASSWORD`로 계정
@@ -302,7 +303,7 @@ sudo ./util/diagnose-web-client.sh
 - `orca` 와 `ubuntu` 의 `authorized_keys` 가 **겹치지 않는다**.
 - Orca 바이너리의 SHA256 이 `/opt/orca/CHECKSUM` 과 같다.
 - sudoers 드롭인·`orca-serve` 유닛·`authorized_keys` 가 설치 시점 해시와 같다(드리프트 검사).
-- `orca-serve` 유닛에 `MemoryMax` 가 걸려 있다.
+- `orca-serve` 유닛에 `MemoryMax` 와 `MemorySwapMax` 가 걸려 있다.
 - sudo I/O 로깅이 켜져 있고(`ORCA_SUDO_LOG=on`), `auditd` 가 돌고 있다.
 - 감시 타이머(`orca-watch`, `orca-resource-watch`, `orca-token-check`, `orca-verify`)가 active다.
 
