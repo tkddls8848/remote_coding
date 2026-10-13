@@ -67,7 +67,9 @@ ORCA_SUDO_LOG="${ORCA_SUDO_LOG:-on}"
 ORCA_SUDO_LOG_DIR="${ORCA_SUDO_LOG_DIR:-/var/log/sudo-io}"
 # orca-serve.service 의 메모리 상한. 커널 OOM killer 가 임의의 프로세스를 고르는 대신
 # 한도를 넘은 이 서비스만 예측 가능하게 멈추게 한다. docs/stability-plan.md 5.3 / 6.4.
-ORCA_MEMORY_HIGH="${ORCA_MEMORY_HIGH:-2G}"
+# MemoryHigh 를 넘으면 커널이 이 서비스를 감속시킨다. 2G 였을 때는 chronicle 검색 서버
+# (약 1.3GB)와 Orca(약 1.3GB)만으로 그 선에 붙어 멈췄다 (2026-10-13). MemoryMax 바로 아래에 둔다.
+ORCA_MEMORY_HIGH="${ORCA_MEMORY_HIGH:-2600M}"
 ORCA_MEMORY_MAX="${ORCA_MEMORY_MAX:-2800M}"
 # 이 서비스가 쓸 수 있는 스왑. 상한이 없으면 한도를 넘은 작업이 MemoryMax 에 닿기 전에
 # 호스트 스왑을 다 채우며 멈추고, OOM 은 끝내 오지 않는다 (2026-10-11, 10-13 장애).
