@@ -1,0 +1,14 @@
+# 영상 서버가 받는 모델 — <ComfyUI/models 아래 경로> <받는 주소> <sha256>
+#
+# Wan 2.2 I2V 14B (Apache-2.0, 상업 이용 허용). 파일은 ComfyUI 용으로 다시 묶은 Comfy-Org/Wan_2.2_ComfyUI_Repackaged.
+# 고잡음 · 저잡음 두 전문가를 차례로 쓰고, lightx2v 4 단계 LoRA 로 빠르게 뽑는다.
+# sha256 은 Hugging Face LFS oid 그대로다(2026-10-19).
+#
+# 쓰는 법: GPU_MODELS_FILE=models-video.txt RUNPOD_POD_NAME=video-gpu RUNPOD_LOCAL_PORT=8190 python gpu-art/runpod/gpu.py start
+
+diffusion_models/wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors 6122e79d55e0f235698d11d657f3b196c5273c830da00b2b013c5a048d5e6a42
+diffusion_models/wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors 5471a457b6ac404202a5fbe6c11595a3d5641fc766b00f38763f72303fffc21e
+text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors c3355d30191f1f066b26d93fba017ae9809dce6c627dda5f6a66eaa651204f68
+vae/wan_2.1_vae.safetensors https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors 2fc39d31359a4b0a64f55876d8ff7fa8d780956ae2cb13463b0223e15148976b
+loras/wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors d176c808d6fc461999b68e321efcb7501b20b8c3797523ed0df14f7d1deff11e
+loras/wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors 024f21de095bc8fad9809ded3e9e49a2e170dcf27075da8145ba7d60d8aab7f9
